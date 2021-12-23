@@ -1,9 +1,14 @@
-
+#include "freertos/FreeRTOS.h"
+#include "esp_intr_alloc.h"
+#include "Output.h"
 #include "../audio/I2SOutput.h"
-
+/*
+ *  I2SOutput(i2s_port_t i2s_port, i2s_pin_config_t &i2s_pins);
+ */
 I2SOutput::I2SOutput(i2s_port_t i2s_port, i2s_pin_config_t &i2s_pins) : Output(i2s_port), m_i2s_pins(i2s_pins)
 {
 }
+
 
 void I2SOutput::start(int sample_rate)
 {
@@ -19,7 +24,11 @@ void I2SOutput::start(int sample_rate)
         .dma_buf_len = 1024,
         .use_apll = false,
         .tx_desc_auto_clear = true,
-        .fixed_mclk = 0};
+        .fixed_mclk = 0,
+		//.mclk_multiple = I2S_MCLK_MULTIPLE_DEFAULT,
+		//.bits_per_chan = I2S_BITS_PER_CHAN_DEFAULT
+		};
+
     //install and start i2s driver
     i2s_driver_install(m_i2s_port, &i2s_config, 0, NULL);
     // set up the i2s pins

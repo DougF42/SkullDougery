@@ -52,7 +52,7 @@
 #include "Sequencer/SwitchBoard.h"
 
 #define INCLUDE_FAST
-#define INCLUDE_SERVO
+// #define INCLUDE_SERVO
 
 static const char *TAG = "PWMDRIVER:";
 
@@ -84,7 +84,7 @@ PwmDriver::PwmDriver (const char *name) :
 
 	// Register with Sequencer
 #ifdef INCLUDE_FAST
-	ESP_LOGD(TAG, "Register LEYE");
+	ESP_LOGD(TAG, "Register EYES and EYEDIR");
 	SwitchBoard::registerDriver (TASK_NAME::EYES, this );
 	SwitchBoard::registerDriver (TASK_NAME::EYEDIR, this );
 	maxLedDuty = std::floor (((1 << LED_DUTY_RES_BITS) - 1) );
@@ -139,18 +139,17 @@ void PwmDriver::callBack (const Message *msg)
 			// Set the duty cycle. We do this immediately - I
 			// expect the ledc interface to be fast enough for this to
 			// be okay.
-			int duty;
+
 #ifdef INCLUDE_FAST
 			if (msg->destination == TASK_NAME::EYES)
 			{
-				duty=msg->value;
 
-				ESP_LOGI(TAG,
-						"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
-						msg->value, duty );
+	//			ESP_LOGD(TAG,
+	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
+	//					msg->value, duty );
 				// TODO: Factor in EYEDIR
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE, duty );
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE, duty);
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE, msg->value );
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE, msg->rate);
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE );
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE );
 			}

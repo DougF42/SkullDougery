@@ -8,8 +8,8 @@
 class DACOutput : public Output
 {
 public:
-    // DAC can only be used with I2S_NUM_0
-    DACOutput() : Output(I2S_NUM_0){};
+    // DAC can only be used with I2S_NUM_0 - no argument!
+	DACOutput();
     void start(int sample_rate);
     virtual uint16_t process_sample(int16_t sample)
     {

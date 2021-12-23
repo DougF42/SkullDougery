@@ -141,8 +141,8 @@ void SwitchBoard::send(Message *msg) {
 	}
 
 	if (nullptr == (target=driverList[static_cast<int>(msg->destination)])) {
-		ESP_LOGD(TAG, "::send  Skip message - destination %d not registered",
-				static_cast<int>(msg->destination));
+	//  		ESP_LOGD(TAG, "::send  Skip message - destination %d not registered",
+	 // 		static_cast<int>(msg->destination));
 		delete msg;
 	} else {
 //		ESP_LOGD(TAG, "::send que up message");
@@ -164,7 +164,7 @@ void SwitchBoard::send(Message *msg) {
  */
 void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 	TAKE_LOCK;
-//	ESP_LOGD(TAG, "We have lock in register driver");
+
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "ERROR: send called before SwitchBoard::runDelivery was run");
 		GIVE_LOCK;
@@ -172,7 +172,7 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 	}
 
 
-//	ESP_LOGD(TAG, "Driver %d is being registered", static_cast<int>(driverName));
+	ESP_LOGD(TAG, "Driver %d is being registered", static_cast<int>(driverName));
 	int targIdx=static_cast<int>(driverName);
 	if (nullptr != driverList[targIdx])
 	{
@@ -180,9 +180,7 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 		driverList[targIdx] = nullptr;
 	}
 	driverList[targIdx]=me;
-//	ESP_LOGD(TAG, "Giving lock back");
 	GIVE_LOCK;
-	ESP_LOGD(TAG, "Driver registered: %s",driverList[targIdx]->devName );
 	return;
 }
 
@@ -194,6 +192,7 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
  */
 void SwitchBoard::deRegisterDriver(TASK_NAME driverName) {
 	TAKE_LOCK;
+	ESP_LOGD(TAG, "Driver %d is being DE-registered", static_cast<int>(driverName));
 	driverList[TASK_IDX(driverName )] = nullptr;
 	GIVE_LOCK;
 }
