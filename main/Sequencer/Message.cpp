@@ -66,6 +66,7 @@ Message *Message::future_Message( TASK_NAME _target,
 }
 
 /**
+ * DEPRECATED:
  * Factory to create a request for information message, OR
  * a reply to a request for info.
  * 
@@ -76,7 +77,7 @@ Message *Message::future_Message( TASK_NAME _target,
  * @param value   - not used if a request. If a reply, this is the value requested
  * @param rate    - not used if a request. If a reply, this is the 'event' from
  *                  the original request, identifying the info being presented.
- */
+ *
 Message *Message::Info_Message(TASK_NAME _target, TASK_NAME _resp,
 		int _event, int _value, int _rate) {
 	Message *m=new Message();
@@ -87,7 +88,7 @@ Message *Message::Info_Message(TASK_NAME _target, TASK_NAME _resp,
 	m->rate  = _rate;
 	return(m);
 }
-
+*/
 void Message::markNoAction() {
 	this->event=EVENT_ACTION_NONE;
 }

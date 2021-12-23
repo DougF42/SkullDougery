@@ -24,13 +24,16 @@
 class SwitchBoard
 {
 public:
-	SwitchBoard ();
+
 	virtual ~SwitchBoard ();
 	static void runDelivery(void *);
 	static void send(Message *msg);
 	static void registerDriver(TASK_NAME driverName, DeviceDef *me);
 	static void deRegisterDriver(TASK_NAME driverName);
 	static void flush();
+
+protected:
+	SwitchBoard ();
 
 private:
 	static volatile bool firstTimeThrough;

@@ -227,14 +227,14 @@ void app_main ()
 	// This controls eyes and jaws...
 	PwmDriver pwm("eyebal/Servo Driver");
 	ESP_LOGD(TAG, "PWM is initialized");
-	msg=Message::Info_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 255);
+	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 255);
 	SwitchBoard::send(msg);
 	vTaskDelay(2000/portTICK_PERIOD_MS);
-	msg=Message::Info_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 255, 0);
+	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 255, 0);
 	SwitchBoard::send(msg);
 	vTaskDelay(2000/portTICK_PERIOD_MS);
 	ESP_LOGD(TAG, "NOW TO BEGIN...");
-	msg=Message::Info_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 0);
+	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 0);
 	SwitchBoard::send(msg);
 
 #endif

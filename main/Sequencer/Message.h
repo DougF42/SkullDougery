@@ -53,12 +53,10 @@ enum class TASK_NAME
 // the driver.
 #define EVENT_ACTION_SETVALUE 3
 
-// This is a response to a request for information
-#define EVENT_ACTION_RESPONSE 4
 class Message
 {
 public:
-	Message ();
+
 	virtual ~Message ();
 	Message(const Message &oldObj); // Copy Constructor
 	TASK_NAME destination;          // Who to deliver this message to
@@ -70,8 +68,8 @@ public:
 			int _event, int val, int rate);
 
 	// This message is either a req for information OR response to a request for info.
-	static Message *Info_Message(TASK_NAME _target, TASK_NAME _resp,
-			int _event, int _value, int _rate);
+// deprecated:	static Message *Info_Message(TASK_NAME _target, TASK_NAME _resp,
+//			int _event, int _value, int _rate);
 
 	bool operator < (const Message&rhs); // Compare event times
 	bool operator > (const Message&rhs); // Compare event times
@@ -83,6 +81,10 @@ public:
 	                      // is the message type of the requesting message.
 	int value;            //  The value we want to set.
 	int rate;             // An indication of how fast this should happen.
+
+protected:
+	Message ();
+
 };
 
 #endif /* MAIN_SEQUENCER_MESSAGE_H_ */
