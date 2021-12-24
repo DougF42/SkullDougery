@@ -50,9 +50,10 @@
 #include "Sequencer/DeviceDef.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
+#include "Interpolate.h"
 
 #define INCLUDE_FAST
-// #define INCLUDE_SERVO
+#define INCLUDE_SERVO
 
 static const char *TAG = "PWMDRIVER:";
 
@@ -86,7 +87,6 @@ PwmDriver::PwmDriver (const char *name) :
 #ifdef INCLUDE_FAST
 	ESP_LOGD(TAG, "Register EYES and EYEDIR");
 	SwitchBoard::registerDriver (TASK_NAME::EYES, this );
-	SwitchBoard::registerDriver (TASK_NAME::EYEDIR, this );
 	maxLedDuty = std::floor (((1 << LED_DUTY_RES_BITS) - 1) );
 	ESP_LOGI(TAG, "...Calculated maxLedDuty factor: %d ", maxLedDuty );
 	ESP_LOGI(TAG, "");
@@ -100,9 +100,12 @@ PwmDriver::PwmDriver (const char *name) :
 	ESP_LOGI(TAG, "Calculated maxServoDuty factor: %d ", maxServoDuty);
 
 	servo_min =.0005/.020 * maxServoDuty; // 1 millisec out of 20
-	servo_max =.0025/.020 * maxServoDuty; // 1 millisec out of 20
+	servo_max =.0025/.020 * maxServoDuty; // 2 millisec out of 20
 	ESP_LOGI(TAG, "SERVO setting range for 1 to 2 millisec is %d to %d", servo_min, servo_max);
 
+	// SET UP INTERP TABLE FOR JAW
+	interpJaw.AddToTable(0, servo_min);
+	interpJaw.AddToTable(100,servo_max);
 #endif
 }
 
@@ -110,7 +113,6 @@ PwmDriver::~PwmDriver ()
 {
 #ifdef INCLUDE_FAST
 	SwitchBoard::deRegisterDriver (TASK_NAME::EYES );
-	SwitchBoard::deRegisterDriver (TASK_NAME::EYEDIR );
 #endif
 #ifdef INCLUDE_SERVO
 	SwitchBoard::deRegisterDriver (TASK_NAME::JAW);
@@ -143,7 +145,7 @@ void PwmDriver::callBack (const Message *msg)
 #ifdef INCLUDE_FAST
 			if (msg->destination == TASK_NAME::EYES)
 			{
-
+				if (msg->event == EVENT_ACTION_SETVALUE) {
 	//			ESP_LOGD(TAG,
 	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
 	//					msg->value, duty );
@@ -152,24 +154,27 @@ void PwmDriver::callBack (const Message *msg)
 				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE, msg->rate);
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE );
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE );
+				}
+				if (msg->event == EVENT_ACTION_SETDIR) {
+					// TODO: NOT implemented.
+				}
 			}
 
-			if (msg->destination == TASK_NAME::EYEDIR)
-			{
-				// TODO: Set EYE Direction modifiers
-				break;
-			}
 
 #endif
 #ifdef INCLUDE_SERVO
 			if (msg->destination == TASK_NAME::JAW)
 			{
-				// We scale the servo so that 0=0deg (no sig) and 100=180Deg (5%)
-				duty = map( msg->value, 0, 100, servo_min, servo_max*.75);
-//				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
-//						msg->value, duty);
+				int duty=msg->value;
+				// Limit DUTY and scale it so that 0=0deg (no sig) and 100=180Deg (5%)
+				if (duty<0) duty=0;
+				else if (duty>100) duty=100;
 
-				ledc_set_duty (LEDC_LOW_SPEED_MODE, CH_JAW, duty );
+				duty = interpJaw.interp(duty);
+				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
+						msg->value, duty);
+
+				ledc_set_duty (LEDC_LOW_SPEED_MODE, CH_JAW, duty);
 				ledc_update_duty (LEDC_LOW_SPEED_MODE, CH_JAW );
 				break;
 			}

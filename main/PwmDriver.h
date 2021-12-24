@@ -17,6 +17,8 @@
 #include "freertos/queue.h"
 #include "driver/ledc.h"
 #include "Sequencer/DeviceDef.h"
+#include "Interpolate.h"
+#define EVENT_ACTION_SETDIR 100
 
 class PwmDriver : DeviceDef{
 public:
@@ -38,6 +40,7 @@ private:
 	int servo_max;
 	void timerSetup();
 	static bool alreadyInited;
+	Interpolate interpJaw;
 };
 
 #endif /* MAIN_PWMDRIVER_H_ */

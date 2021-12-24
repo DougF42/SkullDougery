@@ -25,7 +25,7 @@ typedef uint64_t TIME_t;
 //     entry in the TASK_NAME enum.
 enum class TASK_NAME
 {
-	IDLER = 0, WAVEFILE, EYES, EYEDIR, JAW, NODD, ROTATE, TEST, LAST
+	IDLER = 0, WAVEFILE, EYES, JAW, NODD, ROTATE, TEST, LAST
 };
 #define NO_OF_TASK_NAMES (static_cast<int> (TASK_NAME::LAST ))
 #define TASK_IDX(_xx_)   static_cast<int>(_xx_)
