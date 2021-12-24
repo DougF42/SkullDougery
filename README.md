@@ -23,13 +23,12 @@ next step' is calculated, and a event is schedualed in the sequencer.
 **SERVOS**  Driven by the PWM module in the ESP32, using a 'slow' clock - 
            50 CPS (20 msec), varying the duty cycle on command.
 
-Initial input will be a combination of
-* .mp3 format audio source.
-   (Assume audio goes to a separate speaker? Comes from on-board file? Can ESP32 drive a speaker?)
-   The jaw and eyes will respond to amplitude of each block of ?32? bytes
+Initial input will be an *.mp3 file.
+* .mp3 format audio source, stored in flash memory.
+
+_FUTURE: (Assume audio goes to a separate speaker? Comes from on-board file? Can ESP32 drive a speaker?)
+   The jaw and eyes will respond to amplitude of each block of ?32? bytes_
    
-* .cmd - a command file (Alt: command line) that manually controls rotation (and other operations)
-      either at specified time stamps OR on commnad.
 
 
 
