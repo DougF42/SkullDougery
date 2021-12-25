@@ -105,7 +105,7 @@ PwmDriver::PwmDriver (const char *name) :
 
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.AddToTable(0, servo_min);
-	interpJaw.AddToTable(100,servo_max);
+	interpJaw.AddToTable(255,servo_max);
 #endif
 }
 
@@ -168,7 +168,7 @@ void PwmDriver::callBack (const Message *msg)
 				int duty=msg->value;
 				// Limit DUTY and scale it so that 0=0deg (no sig) and 100=180Deg (5%)
 				if (duty<0) duty=0;
-				else if (duty>100) duty=100;
+				else if (duty>255) duty=255;
 
 				duty = interpJaw.interp(duty);
 				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
