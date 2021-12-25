@@ -1,5 +1,15 @@
 # Skull Driver code.
 #
+# Acknowledgements:
+The code for reading the .mp3 file is based on a .mp3 player published under the name 'atomic14',
+with the source at https://github.com/atomic14/esp32-play-mp3-demo. Most of the code in the 'audio'
+subdirectory is his (as far as I know) with the exception of the 'minimp3.h' file, which is 
+atributed to https://github.com/lieff/minimp3, which was explicitly placed in the public domain
+by the author.  
+I don't know the real names of these software engineers, but I am gratefull to them for their work.
+(I will gladly add their actual names to this notice if I find out who they are, and want me to).
+
+*** PINOUTS ***
 We will use the following controls:
 * 2 LEDS, one per light. _GPIO 34_ (left) and _GPIO 35_ (right)
 * 1 Servo - for the jaw  _GPIO 13_
@@ -28,8 +38,4 @@ Initial input will be an *.mp3 file.
 
 _FUTURE: (Assume audio goes to a separate speaker? Comes from on-board file? Can ESP32 drive a speaker?)
    The jaw and eyes will respond to amplitude of each block of ?32? bytes_
-   
-
-
-
 
