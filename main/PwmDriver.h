@@ -25,9 +25,9 @@ public:
 	PwmDriver(const char *name);
 	virtual ~PwmDriver();
 	void setDutyCycle(ledc_channel_t channel, int duty) ;
-	ledc_channel_t	CH_LEFT_EYE;  // assigned during init
-	ledc_channel_t	CH_RIGHT_EYE; // assigned during init
-	ledc_channel_t	CH_JAW;
+	ledc_channel_t	ch_Left_eye;  // assigned during init
+	ledc_channel_t	ch_right_eye; // assigned during init
+	ledc_channel_t	ch_jaw;
 	void callBack(const Message *msg);
 	inline int getMaxLedDuty()   {return (maxLedDuty);}
 	inline int getMaxServoDuty() {return (maxServoDuty); }

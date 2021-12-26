@@ -74,11 +74,12 @@ PwmDriver::PwmDriver (const char *name) :
 	alreadyInited = true;
 
 #ifdef INCLUDE_FAST
-	CH_LEFT_EYE = LEDC_CHANNEL_0;
-	CH_RIGHT_EYE = LEDC_CHANNEL_1;
+	ch_Left_eye = LEDC_CHANNEL_0;
+	ch_right_eye = LEDC_CHANNEL_1;
 #endif
+
 #ifdef INCLUDE_SERVO
-	CH_JAW      = LEDC_CHANNEL_2;
+	ch_jaw      = LEDC_CHANNEL_2;
 #endif
 	timerSetup ();
 	ESP_LOGD(TAG, "Passed fast timer setup" );
@@ -92,20 +93,25 @@ PwmDriver::PwmDriver (const char *name) :
 	ESP_LOGI(TAG, "");
 
 #endif
-#ifdef INCLUDE_SERVO
 
-	ESP_LOGD(TAG, "PwmDriver initialization - CH_JAW is %d", CH_JAW);
+#ifdef INCLUDE_SERVO
+	ESP_LOGD(TAG, "PwmDriver initialization - CH_JAW is %d", ch_jaw);
 	maxServoDuty = std::floor(((1<<SERVO_DUTY_RES_BITS)-1) );
 	SwitchBoard::registerDriver (TASK_NAME::JAW, this);
 	ESP_LOGI(TAG, "Calculated maxServoDuty factor: %d ", maxServoDuty);
 
-	servo_min =.0005/.020 * maxServoDuty; // 1 millisec out of 20
-	servo_max =.0025/.020 * maxServoDuty; // 2 millisec out of 20
+	// Our hardware sets PWM from 0 to maxServoDuty (about 8k).
+	// Out clock is set for 50 CPS (20 millisec) PWM frequency.
+	// Control width is nominally 1 to 2 millisecs (.001 to .002).
+	// Our servo ranges 180 deg, but we only want 90 deg or so.
+	servo_min =.0007/.020 * maxServoDuty; // .7 millisec out of 20 for 0 deg.
+	servo_max =.0025/.020 * maxServoDuty; // 2.5 millisec out of 20 for 180 deg.
+	servo_max = (servo_max-servo_min)/2 + servo_min; // 1/2 range should give us 90 degrees.
 	ESP_LOGI(TAG, "SERVO setting range for 1 to 2 millisec is %d to %d", servo_min, servo_max);
 
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.AddToTable(0, servo_min);
-	interpJaw.AddToTable(255,servo_max);
+	interpJaw.AddToTable(2000,servo_max);  // 2000 is max value from audio - arbitrary.
 #endif
 }
 
@@ -150,11 +156,12 @@ void PwmDriver::callBack (const Message *msg)
 	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
 	//					msg->value, duty );
 				// TODO: Factor in EYEDIR
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE, msg->value );
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE, msg->rate);
-				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE );
-				ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_LEFT_EYE );
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, msg->value );
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, msg->rate);
+				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
+				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye );
 				}
+
 				if (msg->event == EVENT_ACTION_SETDIR) {
 					// TODO: NOT implemented.
 				}
@@ -165,18 +172,13 @@ void PwmDriver::callBack (const Message *msg)
 #ifdef INCLUDE_SERVO
 			if (msg->destination == TASK_NAME::JAW)
 			{
-				int duty=msg->value;
-				// Limit DUTY and scale it so that 0=0deg (no sig) and 100=180Deg (5%)
-				if (duty<0) duty=0;
-				else if (duty>255) duty=255;
-
+				uint32_t duty=msg->value;
 				duty = interpJaw.interp(duty);
-				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
-						msg->value, duty);
+//				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
+//						msg->value, duty);
 
-				ledc_set_duty (LEDC_LOW_SPEED_MODE, CH_JAW, duty);
-				ledc_update_duty (LEDC_LOW_SPEED_MODE, CH_JAW );
-				break;
+				ledc_set_duty (LEDC_LOW_SPEED_MODE, ch_jaw, duty);
+				ledc_update_duty (LEDC_LOW_SPEED_MODE, ch_jaw );
 			}
 #endif
 			break;
@@ -222,7 +224,7 @@ void PwmDriver::timerSetup ()
 	// - - - - -
 	// Configure LED channel - Left Eye
 	ledc_channel_config_t ledc_conf_eyes;
-	ledc_conf_eyes.channel = CH_LEFT_EYE;
+	ledc_conf_eyes.channel = ch_Left_eye;
 	ledc_conf_eyes.duty = duty;
 	ledc_conf_eyes.gpio_num = PIN_LEFT_EYE;
 	ledc_conf_eyes.intr_type = LEDC_INTR_DISABLE;
@@ -234,11 +236,11 @@ void PwmDriver::timerSetup ()
 		ESP_LOGE(TAG, "Error: LEDC config for left eye failed!" );
 	}
 	ESP_LOGD(TAG, "PWM SETUP: Left Eye Configured and set to 0" );
-	ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE, 0 );
-	ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE );
+	ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, 0 );
+	ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
 
 	// Configure LED channel - Right Eye
-	ledc_conf_eyes.channel = CH_RIGHT_EYE;
+	ledc_conf_eyes.channel = ch_right_eye;
 	ledc_conf_eyes.duty = duty;
 	ledc_conf_eyes.gpio_num = PIN_RIGHT_EYE;
 	ledc_conf_eyes.intr_type = LEDC_INTR_DISABLE;
@@ -249,8 +251,8 @@ void PwmDriver::timerSetup ()
 	{
 		ESP_LOGE(TAG, "Error: LEDC config for right eye failed" );
 	}
-	ledc_set_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE, 0 );
-	ledc_update_duty (LEDC_HIGH_SPEED_MODE, CH_RIGHT_EYE );
+	ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, 0 );
+	ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
 #endif
 
 #ifdef INCLUDE_SERVO
@@ -270,10 +272,10 @@ void PwmDriver::timerSetup ()
 	ledc_channel_config_t ledc_conf_jaw;
 	ledc_conf_jaw.gpio_num = PIN_JAW_SERVO;
 	ledc_conf_jaw.speed_mode = LEDC_LOW_SPEED_MODE;
-	ledc_conf_jaw.channel = CH_JAW;
+	ledc_conf_jaw.channel = ch_jaw;
 	ledc_conf_jaw.intr_type  = LEDC_INTR_DISABLE;
 	ledc_conf_jaw.timer_sel  = SERVO_TIMER;
-	ledc_conf_jaw.duty  = duty;
+	ledc_conf_jaw.duty  = interpJaw.interp(duty);
 	ledc_conf_jaw.hpoint   = 0;
 	if (ESP_OK!=ledc_channel_config(&ledc_conf_jaw)) {
 		ESP_LOGD(TAG, "ERROR: Config jaw failed!");
