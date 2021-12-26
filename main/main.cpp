@@ -50,11 +50,12 @@ const int BUFFER_SIZE = 1024;
  * @oaran output - pointer to the output device.
  *
  */
-#define EYE_AVG_SIZE 32
-#define JAW_AVG_SIZE 32
+
 void runProgram(Output *output) {
 	int eye_avg=0;
 	int eye_avg_cnt=0;
+	int jaw_avg=0;
+	int jaw_avg_cnt=0;
 
 	// setup for the mp3 decoded
 	short *pcm = (short*) malloc (
@@ -94,6 +95,7 @@ void runProgram(Output *output) {
 					strerror(errno) );
 			continue;
 		}
+
 		while (1)
 		{
 #ifdef VOLUME_CONTROL
@@ -141,24 +143,38 @@ void runProgram(Output *output) {
 				for (int i = samples - 1; i >= 0; i-- )
 				{
 					eye_avg+=abs(pcm[i]);
-					eye_avg=pcm[i];
 					eye_avg_cnt++;
-					//ESP_LOGD(TAG, "Samples is %d  index is %d  Value is %d eye_avg is %d  eye_avg_cnt is %d", samples, i, pcm[i], eye_avg, eye_avg_cnt);
 
+					// EYE MOTION
 					if (eye_avg_cnt >=EYE_AVG_SIZE) {
 						eye_avg /= EYE_AVG_SIZE;
 						//ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
-						msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::EYES, EVENT_ACTION_SETVALUE, eye_avg*10, eye_avg*10);
+						msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, eye_avg*10, eye_avg*10);
 						SwitchBoard::send(msg);
 						eye_avg=0;
 						eye_avg_cnt=0;
 					}
 
+					// JAW MOTION
+					jaw_avg += abs(pcm[i]);
+					jaw_avg_cnt ++;
+
+					if (jaw_avg_cnt >= JAW_AVG_SIZE) {
+			//			ESP_LOGD(TAG, "Jaw average count %d total %d average %d", jaw_avg_cnt, jaw_avg, jaw_avg/jaw_avg_cnt);
+						jaw_avg /= jaw_avg_cnt;
+						msg=Message::future_Message(TASK_NAME::JAW, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, jaw_avg, 0);
+						SwitchBoard::send(msg);
+						jaw_avg=0;
+						jaw_avg_cnt=0;
+					}
+
+					// AUDIO
 					if (info.channels == 1)
 					{
 						pcm[i * 2] = pcm[i];
 						pcm[i * 2 - 1] = pcm[i];
 					}
+
 				}
 				// write the decoded samples to the I2S output
 				output->write (pcm, samples );
@@ -206,10 +222,10 @@ void play_task (void *param)
 
 void app_main ()
 {
-	// Start the switchboard
+
 	TaskHandle_t switchboardHandle;
-	//SwitchBoard switch;
-	// Start Messenger first
+
+	// Start Switchboard first
 	ESP_LOGD(TAG, "About to start Switchboard!" );
 	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
 			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
@@ -228,16 +244,24 @@ void app_main ()
 	PwmDriver pwm("eyebal/Servo Driver");
 	ESP_LOGD(TAG, "PWM is initialized");
 	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 255);
-	SwitchBoard::send(msg);
-	vTaskDelay(2000/portTICK_PERIOD_MS);
+	SwitchBoard::send(msg); // Left Eye
+	msg=Message::future_Message(TASK_NAME::JAW, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 0);
+	SwitchBoard::send(msg); // Open JAW
+
+	vTaskDelay(3000/portTICK_PERIOD_MS);
 	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 255, 0);
-	SwitchBoard::send(msg);
-	vTaskDelay(2000/portTICK_PERIOD_MS);
+	SwitchBoard::send(msg);  // Right EYE
+	msg=Message::future_Message(TASK_NAME::JAW, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 2000, 0);
+	SwitchBoard::send(msg);  // Close JAW
+
+	vTaskDelay(3000/portTICK_PERIOD_MS);
 	ESP_LOGD(TAG, "NOW TO BEGIN...");
 	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 0);
 	SwitchBoard::send(msg);
-
+	msg=Message::future_Message(TASK_NAME::JAW, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 1000, 0);
+	SwitchBoard::send(msg);  // Close JAW
 #endif
+
 	xTaskCreatePinnedToCore (play_task, "task", 32768, NULL, 1, NULL, 1 );
 	while(1) {
 		vTaskDelay(5000/portTICK_PERIOD_MS); // Keep me alive

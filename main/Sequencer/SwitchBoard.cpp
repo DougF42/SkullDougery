@@ -113,7 +113,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 						"SeqLoop - ignored message for undefined device %d",
 						TASK_IDX(thisMsg->destination) );
 			}
-//		ESP_LOGD(TAG, "About to delete msg - normal.");
+//		ESP_LOGD(TAG, "Msg delivered or skipped. About to delete msg.");
 		delete thisMsg;
 	} // end of while(true)
 }
@@ -130,9 +130,7 @@ void SwitchBoard::runDelivery(void *xxx) {
  */
 void SwitchBoard::send(Message *msg) {
 	DeviceDef *target;
-//	ESP_LOGD(TAG, "::send Trying to take lock!");
 	TAKE_LOCK;
-//	ESP_LOGD(TAG, "::send Have Lock");
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "::send ERROR: send called before SwitchBoard::runDelivery was run");
 		delete msg;
@@ -141,11 +139,10 @@ void SwitchBoard::send(Message *msg) {
 	}
 
 	if (nullptr == (target=driverList[static_cast<int>(msg->destination)])) {
-	//  		ESP_LOGD(TAG, "::send  Skip message - destination %d not registered",
-	 // 		static_cast<int>(msg->destination));
+	 		ESP_LOGD(TAG, "::send  Skip message - destination %d not registered",
+	  		static_cast<int>(msg->destination));
 		delete msg;
 	} else {
-//		ESP_LOGD(TAG, "::send que up message");
 		msgQueue.push(msg);
 //		ESP_LOGD(TAG, "::send Message queued. About to notify task");
 	}

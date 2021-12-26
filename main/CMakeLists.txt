@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.cpp" "config.cpp" "SPIFFS.cpp" "SPIFFS.cpp" "PwmDriver.cpp"
+idf_component_register(SRCS "main.cpp" "config.cpp" "SPIFFS.cpp" "SPIFFS.cpp" "PwmDriver.cpp" "Interpolate.cpp"
 		"audio/DACOutput.cpp" "audio/I2SOutput.cpp" "audio/Output.cpp"
 		"Sequencer/DeviceDef.cpp" "Sequencer/Message.cpp" "Sequencer/SwitchBoard.cpp"
                     INCLUDE_DIRS "")

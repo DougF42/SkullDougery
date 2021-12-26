@@ -25,7 +25,7 @@ typedef uint64_t TIME_t;
 //     entry in the TASK_NAME enum.
 enum class TASK_NAME
 {
-	IDLER = 0, WAVEFILE, EYES, EYEDIR, JAW, NODD, ROTATE, TEST, LAST
+	IDLER = 0, WAVEFILE, EYES, JAW, NODD, ROTATE, TEST, LAST
 };
 #define NO_OF_TASK_NAMES (static_cast<int> (TASK_NAME::LAST ))
 #define TASK_IDX(_xx_)   static_cast<int>(_xx_)
@@ -67,15 +67,6 @@ public:
 	static Message *future_Message(TASK_NAME target, TASK_NAME from,
 			int _event, int val, int rate);
 
-	// This message is either a req for information OR response to a request for info.
-// deprecated:	static Message *Info_Message(TASK_NAME _target, TASK_NAME _resp,
-//			int _event, int _value, int _rate);
-
-	bool operator < (const Message&rhs); // Compare event times
-	bool operator > (const Message&rhs); // Compare event times
-	void markNoAction();
-
-	TIME_t actionTime;    // When to deliver this message. 0==now.
 	int event;            // A 'valid' event for the device. If the device receives
 	                      // an invalid event, ignore it. If this is a response, this
 	                      // is the message type of the requesting message.
