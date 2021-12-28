@@ -41,6 +41,7 @@ private:
 	void timerSetup();
 	static bool alreadyInited;
 	Interpolate interpJaw;
+	Interpolate interpEyes;
 };
 
 #endif /* MAIN_PWMDRIVER_H_ */

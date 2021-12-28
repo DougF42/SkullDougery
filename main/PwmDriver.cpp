@@ -112,6 +112,10 @@ PwmDriver::PwmDriver (const char *name) :
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.AddToTable(0, servo_min);
 	interpJaw.AddToTable(2000,servo_max);  // 2000 is max value from audio - arbitrary.
+
+	// TODO: SET UP INTERP TABLE FOR LIGHTS
+	interpEyes.AddToTable(0, 0);
+	interpEyes.AddToTable(8192, 8192);
 #endif
 }
 
@@ -141,6 +145,7 @@ PwmDriver::~PwmDriver ()
  */
 void PwmDriver::callBack (const Message *msg)
 {
+	uint32_t duty;
 	switch (msg->event)
 	{
 		case (EVENT_ACTION_SETVALUE):
@@ -151,13 +156,15 @@ void PwmDriver::callBack (const Message *msg)
 #ifdef INCLUDE_FAST
 			if (msg->destination == TASK_NAME::EYES)
 			{
+				duty=msg->value;
+				duty = interpEyes.interp(duty);
 				if (msg->event == EVENT_ACTION_SETVALUE) {
 	//			ESP_LOGD(TAG,
 	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
 	//					msg->value, duty );
 				// TODO: Factor in EYEDIR
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, msg->value );
-				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, msg->rate);
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, duty );
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye );
 				}
@@ -172,9 +179,10 @@ void PwmDriver::callBack (const Message *msg)
 #ifdef INCLUDE_SERVO
 			if (msg->destination == TASK_NAME::JAW)
 			{
-				uint32_t duty=msg->value;
+				duty=msg->value;
 				duty = interpJaw.interp(duty);
-//				ESP_LOGI(TAG, "PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
+//				ESP_LOGI(TAG,
+//						"PWMDRIVER Callback*: Set MOUTH to %d. Actual value will be %d",
 //						msg->value, duty);
 
 				ledc_set_duty (LEDC_LOW_SPEED_MODE, ch_jaw, duty);

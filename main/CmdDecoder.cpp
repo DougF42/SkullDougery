@@ -119,35 +119,56 @@ void CmdDecoder::parseCommand ()
  */
 #define ISCMD(_a_) (0==strcasecmp(tokens[0], (_a_)))
 
-void disspatchCommand(char *tokens[], int tokNo)
+void CmdDecoder::disspatchCommand (char *tokens[], int tokNo)
 {
-	if (ISCMD("?"))
-	{
-		// TODO: RETURN HELP MESSAGE?
+	Message *msg;
 
-	} else if (ISCMD("save"))
-	{
-		// TODO: save current settings
-
-	} else if (ISCMD("clear"))
-	{
-		// TODO: CLEAR ALL CONFIGURATION
-	} else	if (ISCMD("jaw"))
+	if (ISCMD("jaw" ))
 	{
 		// TODO:JAW MOTION. arg is 0 to 180
-	} else if (ISCMD("setjaw"))
-	{
-		// TODO: Set current jaw position as OPEN or CLOSED
-	} else if (ISCMD("eye")) // Set EYE intensity
-	{
+		if (tokNo < 2)
+		{
+			postResponse ("Missing Argument!", RESPONSE_SYNTAX );
+			return;
+		}
+		int val = atoi (tokens[1] );
 
-	} else if (ISCMD("seteye"))
+		if ((val < 0) || (val > 200))
+		{
+			postResponse ("Invalid argument!", RESPONSE_SYNTAX );
+			return;
+		}
+		msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
+				EVENT_ACTION_SETVALUE, val, 0 );
+		SwitchBoard::send(msg);
+		postResponse ("OK", RESPONSE_OK );
+		return;
+	}
+	else if (ISCMD("eye" )) // Set EYE intensity
 	{
-		// TODO: Set current eye intensity as a percent
-	} else
+		// TODO:EYE intensity. arg is 0 to ???
+		if (tokNo < 2)
+		{
+			postResponse ("Missing Argument!", RESPONSE_SYNTAX );
+			return;
+		}
+		int val = atoi (tokens[1] );
+
+		if ((val < 0) || (val > 8000))
+		{
+			postResponse ("Invalid argument!", RESPONSE_SYNTAX );
+			return;
+		}
+		msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
+				EVENT_ACTION_SETVALUE, val, val );
+		SwitchBoard::send(msg);
+		postResponse ("OK", RESPONSE_OK );
+		return;
+	}
+	else
 	{
 		// TODO: UNKNOWN COMMAND
-
+		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
 
 }

@@ -42,7 +42,7 @@ public:
 	virtual ~CmdDecoder ();
 	int addToBuffer(const char *dta, int dtaLen);
 	void flush();                // Flush messages and input queue.
-	virtual void postResponse(char *respTxt, enum responseStatus_t respcode)=0;
+	virtual void postResponse(const char *respTxt, enum responseStatus_t respcode)=0;
 
 protected:
 	void parseCommand();
