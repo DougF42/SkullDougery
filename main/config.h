@@ -8,7 +8,7 @@
 #define I2S_SPEAKER_SERIAL_CLOCK GPIO_NUM_19
 #define I2S_SPEAKER_LEFT_RIGHT_CLOCK GPIO_NUM_21
 #define I2S_SPEAKER_SERIAL_DATA GPIO_NUM_18
-#define I2S_SPEAKDER_SD_PIN GPIO_NUM_5
+// #define I2S_SPEAKDER_SD_PIN GPIO_NUM_5
 
 // For the ANALOG output
 // Which dac channel? channel 1 is pin 25, 2 is pin 26.
@@ -44,7 +44,7 @@ extern i2s_pin_config_t i2s_speaker_pins;
  * What file will we read from the FLASH?
  *
  */
-#define SOURCE_FILE_NAME "/spiffs/Days30.wav"
+#define SOURCE_FILE_NAME "/spiffs/DaysMono.mp3"
 
 // PIN Definitions
 

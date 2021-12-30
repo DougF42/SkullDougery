@@ -8,20 +8,42 @@
 
 #ifndef MAIN_SNDPLAYER_H_
 #define MAIN_SNDPLAYER_H_
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 
-#define SND_EVENT_PLAYER_START 100
-#define SND_EVENT_PLAYER_PAUSE 101
-#define SND_EVENT_PLAYER_REWIND 102
+// These are commands that can be sent to this device
+#define SND_EVENT_PLAYER_IDLE  100
+#define SND_EVENT_PLAYER_START 101
+#define SND_EVENT_PLAYER_PAUSE 102
+#define SND_EVENT_PLAYER_REWIND 103
+// also uses EVENT_ACTION_SETVALUE to set volume
+
+const int BUFFER_SIZE = 1024;
+
+
+enum Player_State {
+	PLAYER_IDLE,    // Nothin happening. Waiting to start
+	PLAYER_RUNNING, // We are playing a file
+	PLAYER_PAUSED,  // We paused - file is still open
+	PLAYER_REWIND   // We need to stop and close the file.
+};
 
 class SndPlayer : DeviceDef
 {
 public:
 	SndPlayer (const char *name);
 	virtual ~SndPlayer ();
-	void playMusic();
-	static void startPlayerTask();
-	void callback(const Message *msg);
+	void playMusic(void *output_ptr);
+	static void startPlayerTask(void *_me);
+	void callBack(const Message *msg);
+	TaskHandle_t myTask;
+
+private:
+	Player_State runState;
+	void checkForCommand();
+	void testEyesAndJaws();
+
 };
 
 #endif /* MAIN_SNDPLAYER_H_ */
