@@ -131,7 +131,7 @@ void runProgram(Output *output) {
 			to_read = info.frame_bytes;
 			if (samples > 0)
 			{
-				ESP_LOGD(TAG, "HAVE %d bytes of data in 1 block", samples);
+//				ESP_LOGD(TAG, "HAVE %d bytes of data in 1 block", samples);
 
 				// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
 				if (!is_output_started)

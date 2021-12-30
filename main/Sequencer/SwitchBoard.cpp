@@ -36,9 +36,6 @@ static const char *TAG="SWITCHBOARD:";
 bool volatile SwitchBoard::firstTimeThrough=true;
 
 // Store pointers to messages (we DONT copy the message itself!)
-StaticQueue_t msgQueueBuffer;
-uint8_t      msgQueueStorage[sizeof(Message *)*11];
-//QueueHandle_t SwitchBoard::msgQueue=xQueueCreateStatic( 10, sizeof(Message *), msgQueueStorage, &msgQueueBuffer);
 QueueHandle_t SwitchBoard::msgQueue=xQueueCreate( 10, sizeof(Message *));
 
 TaskHandle_t SwitchBoard::MessengerTaskId;
@@ -85,14 +82,13 @@ void SwitchBoard::runDelivery(void *xxx) {
 
 	sequencer_semaphore = xSemaphoreCreateBinary( );
 	MessengerTaskId = xTaskGetCurrentTaskHandle ();
-	//GIVE_LOCK;
+	GIVE_LOCK;
 	firstTimeThrough=false;  // Now open for buisness
 
 	while(true)
 	{
 		while ( 0 == uxQueueMessagesWaiting(msgQueue))
 		{  // Wait for 'send' to queue a message
-//			ESP_LOGD(TAG, "Waiting for notify");
 			if (0==ulTaskNotifyTake (true, xBlockTime )) {
 				continue;
 			}
@@ -101,12 +97,11 @@ void SwitchBoard::runDelivery(void *xxx) {
 //		ESP_LOGD(TAG, "About to pop message");
 		xQueueReceive( msgQueue, &thisMsg, 1);
 //		ESP_LOGD(TAG, "Past POP. thisMsg is at %p", thisMsg);
-		//TAKE_LOCK;
+		TAKE_LOCK;
 		int devIdx = TASK_IDX(thisMsg->destination );
 
 		if (driverList[devIdx] != nullptr)
 			{
-//				ESP_LOGD(TAG, "calling device %s", driverList[devIdx]->devName);
 				driverList[devIdx]->callBack (thisMsg );
 			}
 			else
@@ -115,8 +110,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 						"SeqLoop - ignored message for undefined device %d",
 						TASK_IDX(thisMsg->destination) );
 			}
-//		ESP_LOGD(TAG, "Msg delivered or skipped. About to delete msg.");
-		//GIVE_LOCK;
+		GIVE_LOCK;
 		delete thisMsg;
 	} // end of while(true)
 }
@@ -157,7 +151,7 @@ void SwitchBoard::send(Message *msg) {
  */
 void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 	ESP_LOGD(TAG, "In register driver...");
-	//TAKE_LOCK;
+	TAKE_LOCK;
 	ESP_LOGD(TAG, "Have lock in Register driver...");
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "ERROR: send called before SwitchBoard::runDelivery was run");
@@ -173,7 +167,7 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 		driverList[targIdx] = nullptr;
 	}
 	driverList[targIdx]=me;
-	//GIVE_LOCK;
+	GIVE_LOCK;
 	return;
 }
 
