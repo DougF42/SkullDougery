@@ -6,14 +6,18 @@
  *
  * This class is used for message passing between various tasks
  * ( usually drivers).
+ *
+ * The locking protects the driverList from changes while we
+ * are trying to deliver messages.
  */
 
 #include <vector>
-#include <queue>
+
 #include <functional>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "esp_err.h"
@@ -31,7 +35,10 @@ using namespace std;
 static const char *TAG="SWITCHBOARD:";
 bool volatile SwitchBoard::firstTimeThrough=true;
 
-queue<Message *> SwitchBoard::msgQueue;
+// Store pointers to messages (we DONT copy the message itself!)
+StaticQueue_t msgQueueBuffer;
+uint8_t      msgQueueStorage[sizeof(Message *)*10];
+QueueHandle_t SwitchBoard::msgQueue=xQueueCreateStatic( 10, sizeof(Message *), msgQueueStorage, &msgQueueBuffer);
 
 TaskHandle_t SwitchBoard::MessengerTaskId;
 DeviceDef *SwitchBoard::driverList[NO_OF_TASK_NAMES];
@@ -66,7 +73,7 @@ SwitchBoard::~SwitchBoard ()
  */
 void SwitchBoard::runDelivery(void *xxx) {
 
-	Message *thisMsg;
+	Message *thisMsg=nullptr;
 	ESP_LOGD(TAG, "runDelivery started!");
 
 	if (! firstTimeThrough)
@@ -75,31 +82,23 @@ void SwitchBoard::runDelivery(void *xxx) {
 		abort();
 	}
 
-	//sequencer_semaphore = xSemaphoreCreateBinaryStatic(&sequencer_semaphore_buffer );
 	sequencer_semaphore = xSemaphoreCreateBinary( );
 	MessengerTaskId = xTaskGetCurrentTaskHandle ();
-	GIVE_LOCK;
-
-	firstTimeThrough=false;  // open for buisness
+	firstTimeThrough=false;  // Now open for buisness
 
 	while(true)
 	{
-		TAKE_LOCK;
-		while (msgQueue.empty())
+		while ( 0 == uxQueueMessagesWaiting(msgQueue))
 		{  // Wait for 'send' to queue a message
 //			ESP_LOGD(TAG, "Waiting for notify");
-			GIVE_LOCK;
 			if (0==ulTaskNotifyTake (true, xBlockTime )) {
-				TAKE_LOCK;
 				continue;
 			}
-			TAKE_LOCK;
 		}
 
-		thisMsg=msgQueue.front();
-		msgQueue.pop();
+		xQueueReceive( msgQueue, thisMsg, 1);
 //		ESP_LOGD(TAG, "Past POP. queue size %d",msgQueue.size());
-		GIVE_LOCK;
+		TAKE_LOCK;
 		int devIdx = TASK_IDX(thisMsg->destination );
 
 		if (driverList[devIdx] != nullptr)
@@ -114,6 +113,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 						TASK_IDX(thisMsg->destination) );
 			}
 //		ESP_LOGD(TAG, "Msg delivered or skipped. About to delete msg.");
+		GIVE_LOCK;
 		delete thisMsg;
 	} // end of while(true)
 }
@@ -130,11 +130,10 @@ void SwitchBoard::runDelivery(void *xxx) {
  */
 void SwitchBoard::send(Message *msg) {
 	DeviceDef *target;
-	TAKE_LOCK;
+
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "::send ERROR: send called before SwitchBoard::runDelivery was run");
 		delete msg;
-		GIVE_LOCK;
 		abort();
 	}
 
@@ -143,12 +142,10 @@ void SwitchBoard::send(Message *msg) {
 	  		static_cast<int>(msg->destination));
 		delete msg;
 	} else {
-		msgQueue.push(msg);
-//		ESP_LOGD(TAG, "::send Message queued. About to notify task");
+		xQueueSend(msgQueue, msg, 5);
 	}
-	GIVE_LOCK;
+
 	xTaskNotifyGive (MessengerTaskId);
-//	ESP_LOGD(TAG, "::send Task Notified");
 }
 
 
@@ -167,7 +164,6 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 		GIVE_LOCK;
 		abort();
 	}
-
 
 	ESP_LOGD(TAG, "Driver %d is being registered", static_cast<int>(driverName));
 	int targIdx=static_cast<int>(driverName);
@@ -198,10 +194,10 @@ void SwitchBoard::deRegisterDriver(TASK_NAME driverName) {
  * This empties the queue
  */
 void SwitchBoard::flush() {
+	Message *msg=nullptr;
 	TAKE_LOCK;
-	while (!msgQueue.empty()) {
-		Message *msg=msgQueue.front();
-		msgQueue.pop();
+	while (0 != uxQueueMessagesWaiting(msgQueue)) {
+		xQueueReceive(msgQueue, msg, 0);
 		delete msg;
 	}
 	GIVE_LOCK;
