@@ -37,8 +37,9 @@ bool volatile SwitchBoard::firstTimeThrough=true;
 
 // Store pointers to messages (we DONT copy the message itself!)
 StaticQueue_t msgQueueBuffer;
-uint8_t      msgQueueStorage[sizeof(Message *)*10];
-QueueHandle_t SwitchBoard::msgQueue=xQueueCreateStatic( 10, sizeof(Message *), msgQueueStorage, &msgQueueBuffer);
+uint8_t      msgQueueStorage[sizeof(Message *)*11];
+//QueueHandle_t SwitchBoard::msgQueue=xQueueCreateStatic( 10, sizeof(Message *), msgQueueStorage, &msgQueueBuffer);
+QueueHandle_t SwitchBoard::msgQueue=xQueueCreate( 10, sizeof(Message *));
 
 TaskHandle_t SwitchBoard::MessengerTaskId;
 DeviceDef *SwitchBoard::driverList[NO_OF_TASK_NAMES];
@@ -75,7 +76,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 
 	Message *thisMsg=nullptr;
 	ESP_LOGD(TAG, "runDelivery started!");
-
+	//GIVE_LOCK;
 	if (! firstTimeThrough)
 	{
 		ESP_LOGE(TAG, "ERROR: runDelivery called more than once!");
@@ -84,6 +85,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 
 	sequencer_semaphore = xSemaphoreCreateBinary( );
 	MessengerTaskId = xTaskGetCurrentTaskHandle ();
+	//GIVE_LOCK;
 	firstTimeThrough=false;  // Now open for buisness
 
 	while(true)
@@ -96,9 +98,10 @@ void SwitchBoard::runDelivery(void *xxx) {
 			}
 		}
 
-		xQueueReceive( msgQueue, thisMsg, 1);
-//		ESP_LOGD(TAG, "Past POP. queue size %d",msgQueue.size());
-		TAKE_LOCK;
+//		ESP_LOGD(TAG, "About to pop message");
+		xQueueReceive( msgQueue, &thisMsg, 1);
+//		ESP_LOGD(TAG, "Past POP. thisMsg is at %p", thisMsg);
+		//TAKE_LOCK;
 		int devIdx = TASK_IDX(thisMsg->destination );
 
 		if (driverList[devIdx] != nullptr)
@@ -113,7 +116,7 @@ void SwitchBoard::runDelivery(void *xxx) {
 						TASK_IDX(thisMsg->destination) );
 			}
 //		ESP_LOGD(TAG, "Msg delivered or skipped. About to delete msg.");
-		GIVE_LOCK;
+		//GIVE_LOCK;
 		delete thisMsg;
 	} // end of while(true)
 }
@@ -129,23 +132,19 @@ void SwitchBoard::runDelivery(void *xxx) {
  *   @param msg - a pointer to the message to queue for delivery.
  */
 void SwitchBoard::send(Message *msg) {
-	DeviceDef *target;
-
+//	ESP_LOGD(TAG, "IN SEND");
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "::send ERROR: send called before SwitchBoard::runDelivery was run");
 		delete msg;
 		abort();
 	}
 
-	if (nullptr == (target=driverList[static_cast<int>(msg->destination)])) {
-	 		ESP_LOGD(TAG, "::send  Skip message - destination %d not registered",
-	  		static_cast<int>(msg->destination));
-		delete msg;
-	} else {
-		xQueueSend(msgQueue, msg, 5);
-	}
-
+	//TAKE_LOCK;
+//	ESP_LOGD(TAG, "::Sending message. Addr is %p", msg);
+	xQueueSend(msgQueue, (void *) &msg, 1);
+//	ESP_LOGD(TAG, "::send   Message sent");
 	xTaskNotifyGive (MessengerTaskId);
+
 }
 
 
@@ -157,8 +156,9 @@ void SwitchBoard::send(Message *msg) {
  * @param me - pointer to the DeviceDef instance to register.
  */
 void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
-	TAKE_LOCK;
-
+	ESP_LOGD(TAG, "In register driver...");
+	//TAKE_LOCK;
+	ESP_LOGD(TAG, "Have lock in Register driver...");
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "ERROR: send called before SwitchBoard::runDelivery was run");
 		GIVE_LOCK;
@@ -173,7 +173,7 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
 		driverList[targIdx] = nullptr;
 	}
 	driverList[targIdx]=me;
-	GIVE_LOCK;
+	//GIVE_LOCK;
 	return;
 }
 
@@ -184,10 +184,10 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
  * @param driverName - the name of the type of driver to delete.
  */
 void SwitchBoard::deRegisterDriver(TASK_NAME driverName) {
-	TAKE_LOCK;
+	// TAKE_LOCK;
 	ESP_LOGD(TAG, "Driver %d is being DE-registered", static_cast<int>(driverName));
 	driverList[TASK_IDX(driverName )] = nullptr;
-	GIVE_LOCK;
+	// GIVE_LOCK;
 }
 
 /**
@@ -195,10 +195,10 @@ void SwitchBoard::deRegisterDriver(TASK_NAME driverName) {
  */
 void SwitchBoard::flush() {
 	Message *msg=nullptr;
-	TAKE_LOCK;
+	// TAKE_LOCK;
 	while (0 != uxQueueMessagesWaiting(msgQueue)) {
 		xQueueReceive(msgQueue, msg, 0);
 		delete msg;
 	}
-	GIVE_LOCK;
+	// GIVE_LOCK;
 }

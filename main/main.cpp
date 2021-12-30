@@ -131,6 +131,8 @@ void runProgram(Output *output) {
 			to_read = info.frame_bytes;
 			if (samples > 0)
 			{
+				ESP_LOGD(TAG, "HAVE %d bytes of data in 1 block", samples);
+
 				// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
 				if (!is_output_started)
 				{
@@ -148,7 +150,7 @@ void runProgram(Output *output) {
 					// EYE MOTION
 					if (eye_avg_cnt >=EYE_AVG_SIZE) {
 						eye_avg /= EYE_AVG_SIZE;
-						//ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
+						// ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
 						msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, eye_avg*10, eye_avg*10);
 						SwitchBoard::send(msg);
 						eye_avg=0;
@@ -241,7 +243,7 @@ void app_main ()
 #ifdef ENABLE_PWM_DRIVER
   	Message *msg;
 	// This controls eyes and jaws...
-	PwmDriver pwm("eyebal/Servo Driver");
+	PwmDriver pwm("eyeball/Servo Driver");
 	ESP_LOGD(TAG, "PWM is initialized");
 	msg=Message::future_Message(TASK_NAME::EYES, TASK_NAME::IDLER, EVENT_ACTION_SETVALUE, 0, 255);
 	SwitchBoard::send(msg); // Left Eye
