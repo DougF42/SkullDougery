@@ -55,34 +55,52 @@ SndPlayer::~SndPlayer ()
 void SndPlayer::checkForCommand ()
 {
 	uint32_t status;
-	if (pdPASS == xTaskNotifyWait (0, 0, &status, 0 ))
+	static bool lastState = false;
+	bool curState;
+
+	if (pdPASS == xTaskNotifyWait (0, 0, &status, 1 ))
 	{
 		// TODO: Turn 'status' into run state.
 		runState = (Player_State) status;
 		return;
 	}
 
-	//  Check button press.
-	if (gpio_get_level (GPIO_NUM_0 ) == 1)
-	{
+	/*  Check button press. Remeber we configured
+	 *  negative logic - 0 is button pressed.
+	 *
+	 *  This routine debounces the button so we
+	 *  only respond to (1) A press (ignore releases)
+	 *  and (2) Not too close together
+	 */
+	curState = !gpio_get_level (GPIO_NUM_0 );
+//	ESP_LOGD(TAG, "Switch state is %d, last state %d.", curState, lastState );
+	if ((curState == true) && (lastState == false))
+	{ // Only on transition from off to on...
+		ESP_LOGD(TAG, " ---SEE TRANSITION off to on" );
+		ESP_LOGD(TAG, "--- time passed!" );
+
 		switch (runState)
 		{
 			case (PLAYER_IDLE):
 				runState = PLAYER_RUNNING;
 				break;
+
 			case (PLAYER_RUNNING):
 				runState = PLAYER_PAUSED;
 				// TODO:
 				break;
+
 			case (PLAYER_PAUSED):
 				runState = PLAYER_RUNNING;
 				break;
+
 			case (PLAYER_REWIND):
 				// TODO: Ignore this - should never happen?
 				break;
-
 		}
-	}
+
+	}   // end of 'if state changed'
+	lastState = curState;
 	return;
 }
 
@@ -148,8 +166,6 @@ void SndPlayer::playMusic (void *output_ptr)
 		ESP_LOGE("main", "Failed to allocate input_buf memory" );
 	}
 
-	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, this );
-
 	while (1) // WAITING TO START READING THE FILE
 	{
 		is_output_started = false;
@@ -181,6 +197,7 @@ void SndPlayer::playMusic (void *output_ptr)
 		{
 			ESP_LOGE("main", "Failed to open file. Error %d (%s)", errno,
 					strerror(errno) );
+			runState=PLAYER_IDLE;
 			continue;
 		}
 
@@ -316,9 +333,6 @@ void SndPlayer::testEyesAndJaws ()
 {
 	Message *msg;
 
-	// This tests eyes and jaws...
-	PwmDriver pwm ("eyeball/Servo Driver" );
-	ESP_LOGD(TAG, "PWM is initialized" );
 	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 255 );
 	SwitchBoard::send (msg ); // Left Eye
@@ -356,6 +370,12 @@ void SndPlayer::startPlayerTask (void *_me)
 	Output *output;
 	SndPlayer *me = (SndPlayer*) _me;
 	me->runState = PLAYER_IDLE;
+
+	// Register this driver.
+	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, me);
+
+	// This tests eyes and jaws...
+	PwmDriver pwm ("eyeball/Servo Driver" );
 
 	// create the output - see config.h for settings
 #ifdef USE_I2S

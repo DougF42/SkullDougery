@@ -38,7 +38,7 @@ void app_main ()
 
 	SndPlayer player("Player");
 	//player.startPlayerTask();
-	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 8192,
+	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768,
 			&player, 2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
 
 	while (1)

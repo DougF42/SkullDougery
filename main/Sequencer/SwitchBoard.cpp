@@ -150,9 +150,9 @@ void SwitchBoard::send(Message *msg) {
  * @param me - pointer to the DeviceDef instance to register.
  */
 void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
-	ESP_LOGD(TAG, "In register driver...");
+//	ESP_LOGD(TAG, "In register driver...");
 	TAKE_LOCK;
-	ESP_LOGD(TAG, "Have lock in Register driver...");
+//	ESP_LOGD(TAG, "Have lock in Register driver...");
 	if (firstTimeThrough) {
 		ESP_LOGE(TAG, "ERROR: send called before SwitchBoard::runDelivery was run");
 		GIVE_LOCK;
@@ -178,10 +178,10 @@ void SwitchBoard::registerDriver(TASK_NAME driverName, DeviceDef *me) {
  * @param driverName - the name of the type of driver to delete.
  */
 void SwitchBoard::deRegisterDriver(TASK_NAME driverName) {
-	// TAKE_LOCK;
+	TAKE_LOCK;
 	ESP_LOGD(TAG, "Driver %d is being DE-registered", static_cast<int>(driverName));
 	driverList[TASK_IDX(driverName )] = nullptr;
-	// GIVE_LOCK;
+	GIVE_LOCK;
 }
 
 /**

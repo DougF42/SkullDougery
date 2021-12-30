@@ -42,9 +42,9 @@ extern i2s_pin_config_t i2s_speaker_pins;
 
 /**
  * What file will we read from the FLASH?
- *
+ *  Note that directory name IS '/fs'.
  */
-#define SOURCE_FILE_NAME "/spiffs/DaysMono.mp3"
+#define SOURCE_FILE_NAME "/fs/DaysMono.mp3"
 
 // PIN Definitions
 
