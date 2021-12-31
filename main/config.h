@@ -17,7 +17,7 @@
 #define I2S_SPEAKER_SERIAL_CLOCK GPIO_NUM_19
 #define I2S_SPEAKER_LEFT_RIGHT_CLOCK GPIO_NUM_21
 #define I2S_SPEAKER_SERIAL_DATA GPIO_NUM_18
-#define I2S_SPEAKDER_SD_PIN GPIO_NUM_5
+// #define I2S_SPEAKDER_SD_PIN GPIO_NUM_5
 
 // For the ANALOG output
 // Which dac channel? channel 1 is pin 25, 2 is pin 26.
@@ -51,9 +51,9 @@ extern i2s_pin_config_t i2s_speaker_pins;
 
 /**
  * What file will we read from the FLASH?
- *
+ *  Note that directory name IS '/fs'.
  */
-#define SOURCE_FILE_NAME "/spiffs/Days30.wav"
+#define SOURCE_FILE_NAME "/fs/DaysMono.mp3"
 
 // PIN Definitions
 
@@ -74,14 +74,14 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define PIN_RIGHT_EYE    14
 #define LED_FREQ         500
 #define LED_DUTY_RES_BITS    LEDC_TIMER_13_BIT
-#define EYE_AVG_SIZE 64
+#define EYE_AVG_SIZE 128
 
 // Parameters for the SERVO driver (Jaw - pwm)
 // Freq in millisecs.
 #define SERVO_FREQ           50
 #define SERVO_DUTY_RES_BITS  LEDC_TIMER_13_BIT
 #define PIN_JAW_SERVO    13
-#define JAW_AVG_SIZE 64
+#define JAW_AVG_SIZE 256
 
 /*
  * MAP - MACRO to re-map a number from one range to another.

@@ -31,10 +31,13 @@ next step' is calculated, and a event is schedualed in the sequencer.
 **LEDS**    Are Driven by the PWM module in the ESP32, using a 'fast' clock.
 
 **SERVOS**  Driven by the PWM module in the ESP32, using a 'slow' clock - 
-           50 CPS (20 msec), varying the duty cycle on command.
+           50 CPS (20 msec), varying the duty cycle on comand.
 
 Initial input will be an *.mp3 file.
 * .mp3 format audio source, stored in flash memory.
+
+_NOTE: There is a bug in the I2S code on master that keeps us from working. 
+As a result we are using IDF version V4.2.2 (branch: release/v4.2)._
 
 _FUTURE: (Assume audio goes to a separate speaker? Comes from on-board file? Can ESP32 drive a speaker?)
    The jaw and eyes will respond to amplitude of each block of ?32? bytes_
