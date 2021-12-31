@@ -13,6 +13,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "string.h"
+#include "Sequencer/Message.h"
 
 #ifndef MAIN_CMDDECODER_H_
 #define MAIN_CMDDECODER_H_
@@ -38,19 +39,22 @@ public:
 		RESPONSE_SYNTAX          // There was a general syntax error.
 		};
 
-	CmdDecoder ();
+	CmdDecoder (TASK_NAME myId);
 	virtual ~CmdDecoder ();
+	void addEOLtoBuffer(void);
 	int addToBuffer(const char *dta, int dtaLen);
 	void flush();                // Flush messages and input queue.
 	virtual void postResponse(const char *respTxt, enum responseStatus_t respcode)=0;
 
 protected:
 	void parseCommand();
-	void disspatchCommand(char *tokens[], int tokCount);
+	void disspatchCommand(int tokCount, char *tokens[]);
 
 private:
 	char cmdBuf[CMD_BUF_MAX_LEN];
 	int  cmdBufNextChar;
+	enum TASK_NAME senderTaskName;
+	int getIntArg(int tokNo, char *tokens[], int minVal, int maxVal);
 };
 
 #endif /* MAIN_CMDDECODER_H_ */

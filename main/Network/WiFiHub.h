@@ -21,6 +21,7 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "lwip/sockets.h"
 #include "../CmdDecoder.h"
 
 class WiFiHub :public CmdDecoder

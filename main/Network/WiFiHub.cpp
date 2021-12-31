@@ -80,15 +80,15 @@ void WiFiHub::UDP_Server (void *parameters)
 		dest_addr.sin_family = AF_INET;
 		dest_addr.sin_port = htons(SKULL_WIFI_PORT );
 		ip_protocol = IPPROTO_IP;
-		sock = socket (addr_family, SOCK_DGRAM, ip_protocol );
-		if (sock < 0)
+		me->sock = socket (addr_family, SOCK_DGRAM, ip_protocol );
+		if (me->sock < 0)
 		{
 			ESP_LOGE(TAG, "Unable to create socket: errno %d", errno );
 			break;
 		}
 		ESP_LOGI(TAG, "Socket created" );
 
-		int err = bind (sock, (struct sockaddr*) &dest_addr,
+		int err = bind (me->sock, (struct sockaddr*) &dest_addr,
 				sizeof(dest_addr) );
 		if (err < 0)
 		{
@@ -101,8 +101,8 @@ void WiFiHub::UDP_Server (void *parameters)
 		{
 			ESP_LOGI(TAG, "Waiting for data" );
 			socklen_t socklen = sizeof(source_addr);
-			int len = recvfrom (sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
-					(struct sockaddr*) &source_addr, &socklen );
+			int len = recvfrom (me->sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
+					(struct sockaddr*) &me->source_addr, &socklen );
 
 			// Error occurred during receiving
 			if (len < 0)
@@ -114,9 +114,9 @@ void WiFiHub::UDP_Server (void *parameters)
 			else
 			{
 				// Get the sender's ip address as string
-				if (source_addr.ss_family == PF_INET)
+				if (me->source_addr.ss_family == PF_INET)
 				{
-					inet_ntoa_r(((struct sockaddr_in* )&source_addr)->sin_addr,
+					inet_ntoa_r(((struct sockaddr_in* )&me->source_addr)->sin_addr,
 							addr_str, sizeof(addr_str) - 1 );
 				}
 
@@ -126,20 +126,20 @@ void WiFiHub::UDP_Server (void *parameters)
 				ESP_LOGI(TAG, "%s", rx_buffer );
 				// PROCESS COMMAND. Response will be generated before 'addToBuffer' returns...
 
-				addToBuffer (rx_buffer, len);
-				addToBuffer ("\n", 1);
-				flush();
+				me->addToBuffer (rx_buffer, len);
+				me->addToBuffer ("\n", 1);
+				me->flush();
 
 
 			}
 		}  // End of inner while(1)
 
 		// Must have seen an error... shut down the socket and try again.
-		if (sock != -1)
+		if (me->sock != -1)
 		{
 			ESP_LOGE(TAG, "Shutting down socket and restarting..." );
-			shutdown (sock, 0 );
-			close (sock );
+			shutdown (me->sock, 0 );
+			close (me->sock );
 		}
 	}  // End of outer while(1)
 	vTaskDelete (NULL );
@@ -147,16 +147,19 @@ void WiFiHub::UDP_Server (void *parameters)
 
 /**
  * This sends a response to the current source_addr, on 'sock' (the socket).
+ * @param respTxt - the text of the message to send.
+ * @param respcode - A short code of responseStatus_t type that
+ *       describes the nature of the error.
  *
  */
-virtual void WiFiHub::postResponse(const char *respTxt, enum responseStatus_t respcode) {
+void WiFiHub::postResponse(const char *respTxt, enum responseStatus_t respcode) {
 	int err = sendto (sock, respTxt, strlen(respTxt), 0, (struct sockaddr*) &source_addr,
 			sizeof(source_addr) );
 
 	if (err < 0)
 	{
-		ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno );
-		break;
+		ESP_LOGE(TAG, "Error occurred while trying to send a reply!  errno=%d", errno );
+
 	}
 }
 

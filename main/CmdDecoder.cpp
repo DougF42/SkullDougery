@@ -28,8 +28,10 @@
 #include "CmdDecoder.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
+#include "SndPlayer.h"
 
-CmdDecoder::CmdDecoder () {
+CmdDecoder::CmdDecoder (TASK_NAME myId) {
+	senderTaskName=myId;
 	flush();
 }
 
@@ -38,44 +40,57 @@ CmdDecoder::~CmdDecoder () {
 }
 
 /**
+ * This lets us force an EOL condition.
+ */
+void CmdDecoder::addEOLtoBuffer(void) {
+	char buf='\n';
+	addToBuffer(&buf, 1);
+	return;
+}
+
+/**
  * Add the dta to the command buffer.
- * If the EOL is recognized, parse the buffer.
+ *
+ * We only process characters from the input buffer, adding them to the
+ * internal command buffer.
+ * We return after seeing (1) A NULL character, or (2) An EOL or (3) The end of the buffer.
+ * (if EOL is seen, we process the current command  buffer if it is not empty).
  *
  * @param dta - pointer to the dta string.
- * @param dtaLen - number of characters to process
+ * @param dtaLen - number of characters available in the dta string.
  * @return - the number of characters used.
  */
 int CmdDecoder::addToBuffer (const char *dta, int dtaLen)
 {
-	int idx = 0;
-	while (idx < dtaLen)
+	int idx;
+	for (idx = 0; idx<dtaLen; idx++)
 	{
 		if (dta[idx] == '\0')
 		{
-			// TODO: RETURN EMBEDED NULL ERROR!
 			break;
 
 		}
-		else if ((dta[idx] == '\r') || (dta[idx] == '\n'))
+
+		if ((dta[idx] == '\r') || (dta[idx] == '\n'))
 		{
 			parseCommand ();
-			idx++; // because we break here (and dont increment index)
 			break;
 
 		}
+
 		else if (cmdBufNextChar >= (CMD_BUF_MAX_LEN-1))
 		{
 			// TODO: ERROR - command too long
 			break;
 
 		}
+
 		else
 		{
 			cmdBuf[cmdBufNextChar] = dta[idx];
 		}
-		idx++;
 	} // End of while (idx<dtaLen)
-	return (idx);
+	return (++idx);
 }
 
 // Flush messages and input queue.
@@ -91,22 +106,50 @@ void CmdDecoder::flush() {
 void CmdDecoder::parseCommand ()
 {
 	cmdBuf[cmdBufNextChar] = '\0'; // ensure a NULL terminator
+
 	char *tokens[MAX_ARGUMENT_COUNT]; // MAX OF 10 TOKENS!
 	int tokNo = 0;
-	char *cmdPtr;
-	for (cmdPtr = cmdBuf;; ((cmdPtr = NULL) && (tokNo < MAX_ARGUMENT_COUNT)) )
+
+	// get the command.
+	tokens[0]=strtok(cmdBuf, " ");
+	if ( tokens[0] == NULL) return;
+
+	// Tokenize the arguments for the command. Stop on too many tokens or end of buffer
+	//for (; ((cmdBufPtr != '\0') && (tokNo < MAX_ARGUMENT_COUNT)); cmdBufPtr++)
+	for (tokNo=1; ((tokens[tokNo] != 0) && (tokNo<MAX_ARGUMENT_COUNT)); tokNo++)
 	{
-		tokens[tokNo] = strtok (cmdPtr, " " );
-		if (tokens[tokNo] == NULL) break;
-		tokNo++;
+		tokens[tokNo] = strtok (NULL, " " );
+		if (tokens[tokNo] == NULL) break; // all done
 	}
 
 	if (0 != strlen (tokens[tokNo] ))
 	{
-		disspatchCommand (tokens, tokNo );
+		disspatchCommand (tokNo, tokens);
 	}
 
 	return;
+}
+
+/**
+ * This will attempt to parse an integer argument.
+ * If there is an error, we send a syntax error.
+ * return value is the requested integer, or BAD_NUMBER
+ */
+#define BAD_NUMBER 0xFFFFEFE
+int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
+	if (tokens[tokNo]==NULL) {
+		postResponse ("Missing Argument!", RESPONSE_SYNTAX );
+		return(BAD_NUMBER);
+	}
+
+	int val = atoi (tokens[1] );
+
+	if ((val < minVal) || (val > maxVal))
+		{
+		postResponse ("Invalid argument - out of range", RESPONSE_SYNTAX );
+		return(BAD_NUMBER);
+		}
+	return(val);
 }
 
 
@@ -119,56 +162,46 @@ void CmdDecoder::parseCommand ()
  */
 #define ISCMD(_a_) (0==strcasecmp(tokens[0], (_a_)))
 
-void CmdDecoder::disspatchCommand (char *tokens[], int tokNo)
+void CmdDecoder::disspatchCommand (int tokCount, char *tokens[])
 {
 	Message *msg;
+	int val;
+	if (ISCMD("PAUSE")) {
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
 
-	if (ISCMD("jaw" ))
+	} else if (ISCMD("RUN")) {
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+
+	} else if (ISCMD("STOP")) {
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+
+	} else if (ISCMD("jaw" ))
 	{
-		// TODO:JAW MOTION. arg is 0 to 180
-		if (tokNo < 2)
-		{
-			postResponse ("Missing Argument!", RESPONSE_SYNTAX );
-			return;
-		}
-		int val = atoi (tokens[1] );
+		val=getIntArg( 1, tokens, 0, 180);
 
-		if ((val < 0) || (val > 200))
-		{
-			postResponse ("Invalid argument!", RESPONSE_SYNTAX );
-			return;
-		}
-		msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
+		msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
 				EVENT_ACTION_SETVALUE, val, 0 );
 		SwitchBoard::send(msg);
 		postResponse ("OK", RESPONSE_OK );
-		return;
 	}
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
-		// TODO:EYE intensity. arg is 0 to ???
-		if (tokNo < 2)
-		{
-			postResponse ("Missing Argument!", RESPONSE_SYNTAX );
-			return;
-		}
-		int val = atoi (tokens[1] );
-
-		if ((val < 0) || (val > 8000))
-		{
-			postResponse ("Invalid argument!", RESPONSE_SYNTAX );
-			return;
-		}
-		msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
+		val=getIntArg(1, tokens, 0, 10000);
+		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
 				EVENT_ACTION_SETVALUE, val, val );
 		SwitchBoard::send(msg);
 		postResponse ("OK", RESPONSE_OK );
-		return;
 	}
 	else
 	{
 		// TODO: UNKNOWN COMMAND
 		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
-
+	return;
 }
