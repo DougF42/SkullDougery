@@ -60,7 +60,7 @@ void SndPlayer::checkForCommand ()
 
 	if (pdPASS == xTaskNotifyWait (0, 0, &status, 1 ))
 	{
-		// TODO: Turn 'status' into run state.
+		// Turn 'status' into run state.
 		runState = (Player_State) status;
 		return;
 	}
@@ -76,8 +76,6 @@ void SndPlayer::checkForCommand ()
 //	ESP_LOGD(TAG, "Switch state is %d, last state %d.", curState, lastState );
 	if ((curState == true) && (lastState == false))
 	{ // Only on transition from off to on...
-		ESP_LOGD(TAG, " ---SEE TRANSITION off to on" );
-		ESP_LOGD(TAG, "--- time passed!" );
 
 		switch (runState)
 		{
@@ -141,7 +139,7 @@ void SndPlayer::callBack (const Message *msg)
  */
 void SndPlayer::playMusic (void *output_ptr)
 {
-	Output *output = (Output *)output_ptr;
+	Output *output = (Output*) output_ptr;
 	int eye_avg = 0;
 	int eye_avg_cnt = 0;
 	int jaw_avg = 0;
@@ -178,11 +176,9 @@ void SndPlayer::playMusic (void *output_ptr)
 		}
 
 		// mp3 decoder state
-		mp3dec_t mp3d =
-		{ };
+		mp3dec_t mp3d = { };
 		mp3dec_init (&mp3d );
-		mp3dec_frame_info_t info =
-		{ };
+		mp3dec_frame_info_t info = { };
 
 		// keep track of how much data we have buffered, need to read and decoded
 		int to_read = BUFFER_SIZE;
@@ -197,7 +193,7 @@ void SndPlayer::playMusic (void *output_ptr)
 		{
 			ESP_LOGE("main", "Failed to open file. Error %d (%s)", errno,
 					strerror(errno) );
-			runState=PLAYER_IDLE;
+			runState = PLAYER_IDLE;
 			continue;
 		}
 
@@ -223,106 +219,105 @@ void SndPlayer::playMusic (void *output_ptr)
 			// feed the watchdog
 			vTaskDelay (pdMS_TO_TICKS(1 ) );
 
-			// ESP_LOGI("main", "Read %d bytes\n", n);
+			//ESP_LOGI("main", "Read %d bytes\n", n );
 			buffered += n;
+
 			if ((runState == PLAYER_REWIND) || (buffered == 0))
 			{
-				{
-					// Either we've been told to stop, or have reached the end of the file
-					// AND processed all the buffered data.
-					output->stop ();
-					is_output_started = false;
-					fclose (fp );
-					runState = PLAYER_IDLE;
-					break;
-				}
+				// Either we've been told to stop, or have reached the end of the file
+				// AND processed all the buffered data.
+				output->stop ();
+				is_output_started = false;
+				fclose (fp );
+				runState = PLAYER_IDLE;
+				break;
+			}
 
-				// decode the next frame
-				int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered,
-						pcm, &info );
+			// decode the next frame
+			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm,
+					&info );
 
-				// we've processed this may bytes from teh buffered data
-				buffered -= info.frame_bytes;
+			// we've processed this may bytes from teh buffered data
+			buffered -= info.frame_bytes;
 
-				// shift the remaining data to the front of the buffer
-				memmove (input_buf, input_buf + info.frame_bytes, buffered );
+			// shift the remaining data to the front of the buffer
+			memmove (input_buf, input_buf + info.frame_bytes, buffered );
 
-				// we need to top up the buffer from the file
-				to_read = info.frame_bytes;
-				if (samples > 0)
-				{
+			// we need to top up the buffer from the file
+			to_read = info.frame_bytes;
+			if (samples > 0)
+			{
 //				ESP_LOGD(TAG, "HAVE %d bytes of data in 1 block", samples);
 
-					// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
-					if (!is_output_started)
-					{
-						output->start (info.hz );
-						is_output_started = true;
-					}
-
-					// if we've decoded a frame of mono samples convert it to stereo by duplicating the left channel
-					// we can do this in place as our samples buffer has enough space
-					// AUDIO
-					if (info.channels == 1)
-					{
-						for (int i = samples - 1; i >= 0; i-- )
-						{
-							pcm[i * 2] = pcm[i];
-							pcm[i * 2 - 1] = pcm[i];
-						}
-					}
-
-					// This is where we do the averaging
-					for (int i = 0; i < (samples * 2); i += 2 )
-					{
-						eye_avg += abs (pcm[i] );
-						eye_avg_cnt++;
-
-						// EYE MOTION
-						if (eye_avg_cnt >= EYE_AVG_SIZE)
-						{
-							eye_avg /= EYE_AVG_SIZE;
-#ifdef ENABLE_EYES
-							// ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
-							msg = Message::future_Message (TASK_NAME::EYES,
-									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									eye_avg * 10, eye_avg * 10 );
-							SwitchBoard::send (msg );
-#endif
-							eye_avg = 0;
-							eye_avg_cnt = 0;
-						}
-
-						// JAW MOTION
-						jaw_avg += abs (pcm[i] );
-						jaw_avg_cnt++;
-
-						if (jaw_avg_cnt >= JAW_AVG_SIZE)
-						{
-							//			ESP_LOGD(TAG, "Jaw average count %d total %d average %d", jaw_avg_cnt, jaw_avg, jaw_avg/jaw_avg_cnt);
-							jaw_avg /= jaw_avg_cnt;
-#ifdef ENABLE_JAW
-							msg = Message::future_Message (TASK_NAME::JAW,
-									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									jaw_avg, 0 );
-							SwitchBoard::send (msg );
-#endif
-							jaw_avg = 0;
-							jaw_avg_cnt = 0;
-						}
-
-					}
-					// write the decoded samples to the I2S output
-					output->write (pcm, samples );
-					// keep track of how many samples we've decoded
-					decoded += samples;
+				// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
+				if (!is_output_started)
+				{
+					output->start (info.hz );
+					is_output_started = true;
 				}
-				// ESP_LOGI("main", "decoded %d samples\n", decoded);
+
+				// if we've decoded a frame of mono samples convert it to stereo by duplicating the left channel
+				// we can do this in place as our samples buffer has enough space
+				// AUDIO
+				if (info.channels == 1)
+				{
+					for (int i = samples - 1; i >= 0; i-- )
+					{
+						pcm[i * 2] = pcm[i];
+						pcm[i * 2 - 1] = pcm[i];
+					}
+				}
+
+				// This is where we do the averaging
+				for (int i = 0; i < (samples * 2); i += 2 )
+				{
+					eye_avg += abs (pcm[i] );
+					eye_avg_cnt++;
+
+					// EYE MOTION
+					if (eye_avg_cnt >= EYE_AVG_SIZE)
+					{
+						eye_avg /= EYE_AVG_SIZE;
+#ifdef ENABLE_EYES
+						// ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
+						msg = Message::future_Message (TASK_NAME::EYES,
+								TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+								eye_avg * 10, eye_avg * 10 );
+						SwitchBoard::send (msg );
+#endif
+						eye_avg = 0;
+						eye_avg_cnt = 0;
+					}
+
+					// JAW MOTION
+					jaw_avg += abs (pcm[i] );
+					jaw_avg_cnt++;
+
+					if (jaw_avg_cnt >= JAW_AVG_SIZE)
+					{
+						//			ESP_LOGD(TAG, "Jaw average count %d total %d average %d", jaw_avg_cnt, jaw_avg, jaw_avg/jaw_avg_cnt);
+						jaw_avg /= jaw_avg_cnt;
+#ifdef ENABLE_JAW
+						msg = Message::future_Message (TASK_NAME::JAW,
+								TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+								jaw_avg, 0 );
+						SwitchBoard::send (msg );
+#endif
+						jaw_avg = 0;
+						jaw_avg_cnt = 0;
+					}
+
+				}
+				// write the decoded samples to the I2S output
+				output->write (pcm, samples );
+				// keep track of how many samples we've decoded
+				decoded += samples;
 			}
-			ESP_LOGI("main", "Finished\n" );
-			fclose (fp );
-		}  // PLAY THIS FILE
-	}  // WAITING TO START READING THE FILE
+			// ESP_LOGI("main", "decoded %d samples\n", decoded);
+		} // END of while PLAY THIS FILE
+		ESP_LOGI("main", "Finished playing file\n" );
+		fclose (fp );
+	}  // END of WAITING TO START READING THE FILE
 }
 
 /**
