@@ -65,14 +65,14 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define PIN_RIGHT_EYE    14
 #define LED_FREQ         500
 #define LED_DUTY_RES_BITS    LEDC_TIMER_13_BIT
-#define EYE_AVG_SIZE 128
+#define EYE_AVG_SIZE 256
 
 // Parameters for the SERVO driver (Jaw - pwm)
 // Freq in millisecs.
 #define SERVO_FREQ           50
 #define SERVO_DUTY_RES_BITS  LEDC_TIMER_13_BIT
 #define PIN_JAW_SERVO    13
-#define JAW_AVG_SIZE 256
+#define JAW_AVG_SIZE 1024
 
 /*
  * MAP - MACRO to re-map a number from one range to another.
