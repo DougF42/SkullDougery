@@ -62,6 +62,12 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 }
 
 /**
+ * Shut it down... ?
+ */
+WiFiHub::~WiFiHub() {
+
+}
+/**
  * Set up the server, listen for UDP input.
  *
  */
@@ -164,10 +170,20 @@ void WiFiHub::postResponse(const char *respTxt, enum responseStatus_t respcode) 
 }
 
 /**
+ * Initializer - do nothing.
+ */
+ WiFiHub::WiFiHub(TASK_NAME devId):CmdDecoder (devId) {
+	 sock=0;
+	 udpServerTask=nullptr;
+}
+
+
+/**
  * Set up the Access Point
  */
 void WiFiHub::WiFi_HUB_init (void)
 {
+
 	ESP_ERROR_CHECK(esp_netif_init () );
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
 	esp_netif_create_default_wifi_ap ();
@@ -198,5 +214,7 @@ void WiFiHub::WiFi_HUB_init (void)
 
 	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
 			SKULL_WIFI_SSID, SKULL_WIFI_PASS, SKULL_WIFI_CHANNEL );
+
+	xTaskCreate (UDP_Server, "UDP Server", 8192, this, 1, &udpServerTask);
 }
 

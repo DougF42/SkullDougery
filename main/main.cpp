@@ -12,9 +12,10 @@
 #include "config.h"
 #include "PwmDriver.h"
 #include "SndPlayer.h"
+#include "Network/WiFiHub.h"
 
 #define ENABLE_PWM_DRIVER
-
+#define ENABLE_WIFI
 #include "audio/minimp3.h"
 
 static const char *TAG = "MAIN::";
@@ -27,7 +28,17 @@ void app_main ();
 
 void app_main ()
 {
-
+	// Initialize NVS for everyone...
+	esp_err_t ret = nvs_flash_init ();
+	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+	{
+		ESP_ERROR_CHECK(nvs_flash_erase () );
+		ret = nvs_flash_init ();
+	}
+	ESP_ERROR_CHECK(ret );
+#ifdef ENABLE_WIFI
+	WiFiHub wifi(TASK_NAME::UDP);
+#endif
 	TaskHandle_t switchboardHandle;
 
 	// Start Switchboard first
@@ -35,6 +46,12 @@ void app_main ()
 	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
 			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
 	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
+
+
+#ifdef ENABLE_WIFI
+	// Start Network (Access Point)
+	wifi.WiFi_HUB_init();
+#endif
 
 	SndPlayer player("Player");
 	//player.startPlayerTask();

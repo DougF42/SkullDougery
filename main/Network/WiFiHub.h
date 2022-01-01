@@ -27,7 +27,7 @@
 class WiFiHub :public CmdDecoder
 {
 public:
-	WiFiHub ();
+	WiFiHub (TASK_NAME devId);
 	virtual ~WiFiHub ();
 	void WiFi_HUB_init(void);
 
@@ -38,6 +38,7 @@ private:
 	void postResponse(const char *respTxt, enum responseStatus_t respcode);
 	struct sockaddr_storage source_addr; // Who sent us a message?
 	int sock; // The socket the server is using.
+	TaskHandle_t udpServerTask;
 };
 
 #endif /* MAIN_NETWORK_WIFIHUB_H_ */
