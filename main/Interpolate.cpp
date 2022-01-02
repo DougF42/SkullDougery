@@ -32,6 +32,7 @@ Interpolate::Interpolate() {
 	// Auto-generated constructor stub
 	lastTabIdx=-1;
 	slope[0]=0.0;
+	limitFlag=false;
 }
 
 Interpolate::~Interpolate() {
@@ -63,25 +64,45 @@ void Interpolate::AddToTable(int Xn, unsigned int Yn) {
 /**
  * Linear Interpolation based on the table.
  *
- * If x is less than the first entry, interpolate based on first two entries
- * If x is greater than the last entry, interpolate base on last two entries
- *
- * Scaling... an issue!
+ * If limitFlag is true, then we never return a y outside the range of yTable[0],
+ *    yTable[lastTabIdx].
+ * if limitFlag is false then:
+ *    If x is less than the first entry, interpolate based on first two entries
+ *    If x is greater than the last entry, interpolate base on last two entries
  *
  */
-unsigned Interpolate::interp(int x) {
+unsigned Interpolate::interp (int x)
+{
 	// First, find our range
-	int highIdx=0;
-	int lowIdx=0;
-	for (highIdx=0; highIdx<lastTabIdx; highIdx++) {
-		if ( xTable[highIdx]>= x) break;
+	int highIdx = 0;
+	int lowIdx = 0;
+	for (highIdx = 0; highIdx < lastTabIdx; highIdx++ )
+	{
+		// Check HIGH limit
+		if (xTable[highIdx] >= x)
+		{
+			if (limitFlag)
+			{
+				return (yTable[highIdx]);
+			}
+			else
+			{
+				break;
+			}
+		}
 	}
 
-	if (highIdx==0) highIdx=1;
-	lowIdx=highIdx-1;
+	if (highIdx==0) {
+		if ((limitFlag))
+		{
+			return (yTable[0]);
+		}
 
-	int res = yTable[lowIdx] + ( x - xTable[highIdx-1]) * slope[highIdx];
-	return(res);
+		lowIdx = highIdx - 1;
+	}
+
+	int res = yTable[lowIdx] + (x - xTable[highIdx - 1]) * slope[highIdx];
+	return (res);
 }
 
 

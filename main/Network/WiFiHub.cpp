@@ -71,11 +71,10 @@ WiFiHub::~WiFiHub() {
  * Set up the server, listen for UDP input.
  *
  */
-void WiFiHub::UDP_Server (void *parameters)
+void WiFiHub::UDP_Server_wait_connection (void *parameters)
 {
 	WiFiHub *me = (WiFiHub*) parameters;
-	char rx_buffer[128];
-	char addr_str[128];
+
 	int addr_family = AF_INET;
 	int ip_protocol = 0;
 
@@ -102,13 +101,34 @@ void WiFiHub::UDP_Server (void *parameters)
 		}
 		ESP_LOGI(TAG, "Socket bound, port %d", SKULL_WIFI_PORT );
 
+		me->UDP_Server_handleCommmands( );
+		// Must have seen an error... shut down the socket and try again.
+		if (me->sock != -1)
+		{
+			ESP_LOGE(TAG, "Shutting down socket and restarting..." );
+			shutdown (me->sock, 0 );
+			close (me->sock );
+		}
+	}  // End of outer while(1)
+
+	vTaskDelete (NULL ); // in practice, this never happens.
+	}
+
+/*
+ * Data comes from any source (no concept of a connection), we process each
+ *  command as soon as it is recevied and send a reply to the source.
+ * Each packet is a complete command.
+ */
+	void WiFiHub::UDP_Server_handleCommmands () {
+		char rx_buffer[128];
+		char addr_str[128];
 		// The actual server...
 		while (1)
 		{
 			ESP_LOGI(TAG, "Waiting for data" );
 			socklen_t socklen = sizeof(source_addr);
-			int len = recvfrom (me->sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
-					(struct sockaddr*) &me->source_addr, &socklen );
+			int len = recvfrom (sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
+					(struct sockaddr*) &source_addr, &socklen );
 
 			// Error occurred during receiving
 			if (len < 0)
@@ -120,9 +140,9 @@ void WiFiHub::UDP_Server (void *parameters)
 			else
 			{
 				// Get the sender's ip address as string
-				if (me->source_addr.ss_family == PF_INET)
+				if (source_addr.ss_family == PF_INET)
 				{
-					inet_ntoa_r(((struct sockaddr_in* )&me->source_addr)->sin_addr,
+					inet_ntoa_r(((struct sockaddr_in* )&source_addr)->sin_addr,
 							addr_str, sizeof(addr_str) - 1 );
 				}
 
@@ -131,24 +151,12 @@ void WiFiHub::UDP_Server (void *parameters)
 				ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str );
 				ESP_LOGI(TAG, "%s", rx_buffer );
 				// PROCESS COMMAND. Response will be generated before 'addToBuffer' returns...
-
-				me->addToBuffer (rx_buffer, len);
-				me->addToBuffer ("\n", 1);
-				me->flush();
-
+				addToBuffer (rx_buffer, len);
+				addEOLtoBuffer();
 
 			}
 		}  // End of inner while(1)
 
-		// Must have seen an error... shut down the socket and try again.
-		if (me->sock != -1)
-		{
-			ESP_LOGE(TAG, "Shutting down socket and restarting..." );
-			shutdown (me->sock, 0 );
-			close (me->sock );
-		}
-	}  // End of outer while(1)
-	vTaskDelete (NULL );
 }
 
 /**
@@ -159,7 +167,13 @@ void WiFiHub::UDP_Server (void *parameters)
  *
  */
 void WiFiHub::postResponse(const char *respTxt, enum responseStatus_t respcode) {
-	int err = sendto (sock, respTxt, strlen(respTxt), 0, (struct sockaddr*) &source_addr,
+	char tmpbuf[128];
+	tmpbuf[0]='\0';
+	strncpy(tmpbuf, respTxt, sizeof(tmpbuf));
+	strncat(tmpbuf, "\n", sizeof(tmpbuf)-1);
+
+	ESP_LOGD(TAG, "POST RESPONSE: %s", tmpbuf);
+	int err = sendto (sock, tmpbuf, strlen(tmpbuf), 0, (struct sockaddr*) &source_addr,
 			sizeof(source_addr) );
 
 	if (err < 0)
@@ -215,6 +229,6 @@ void WiFiHub::WiFi_HUB_init (void)
 	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
 			SKULL_WIFI_SSID, SKULL_WIFI_PASS, SKULL_WIFI_CHANNEL );
 
-	xTaskCreate (UDP_Server, "UDP Server", 8192, this, 1, &udpServerTask);
+	xTaskCreate (UDP_Server_wait_connection, "UDP Server", 8192, this, 1, &udpServerTask);
 }
 

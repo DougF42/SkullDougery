@@ -30,6 +30,8 @@
 #include "Sequencer/SwitchBoard.h"
 #include "SndPlayer.h"
 
+static const char *TAG="CmdDecoder::";
+
 CmdDecoder::CmdDecoder (TASK_NAME myId) {
 	senderTaskName=myId;
 	flush();
@@ -67,27 +69,35 @@ int CmdDecoder::addToBuffer (const char *dta, int dtaLen)
 	{
 		if (dta[idx] == '\0')
 		{
+			ESP_LOGD(TAG, "See NULL string terminator");
+			flush();
 			break;
 
 		}
 
 		if ((dta[idx] == '\r') || (dta[idx] == '\n'))
 		{
+//			ESP_LOGD(TAG, "See EOL");
 			parseCommand ();
+			flush();
 			break;
 
 		}
 
 		else if (cmdBufNextChar >= (CMD_BUF_MAX_LEN-1))
 		{
-			// TODO: ERROR - command too long
+			// ERROR - command too long
+			postResponse("Error - command too long!", RESPONSE_SYNTAX);
+			ESP_LOGD(TAG, "Error - command too long!");
+			flush();
 			break;
 
 		}
 
 		else
 		{
-			cmdBuf[cmdBufNextChar] = dta[idx];
+
+			cmdBuf[cmdBufNextChar++] = dta[idx];
 		}
 	} // End of while (idx<dtaLen)
 	return (++idx);
@@ -111,21 +121,19 @@ void CmdDecoder::parseCommand ()
 	int tokNo = 0;
 
 	// get the command.
-	tokens[0]=strtok(cmdBuf, " ");
-	if ( tokens[0] == NULL) return;
+	tokens[tokNo]=strtok(cmdBuf, " ");
+	if ( tokens[tokNo] == NULL) return;
 
 	// Tokenize the arguments for the command. Stop on too many tokens or end of buffer
-	//for (; ((cmdBufPtr != '\0') && (tokNo < MAX_ARGUMENT_COUNT)); cmdBufPtr++)
 	for (tokNo=1; ((tokens[tokNo] != 0) && (tokNo<MAX_ARGUMENT_COUNT)); tokNo++)
 	{
 		tokens[tokNo] = strtok (NULL, " " );
 		if (tokens[tokNo] == NULL) break; // all done
 	}
 
-	if (0 != strlen (tokens[tokNo] ))
-	{
-		disspatchCommand (tokNo, tokens);
-	}
+//	ESP_LOGD(TAG, "parseCommand: We have %d tokens\n", tokNo);
+//	ESP_LOGD(TAG, "parseCommand: command is %s", tokens[0]);
+	dispatchCommand (tokNo, tokens);
 
 	return;
 }
@@ -136,8 +144,10 @@ void CmdDecoder::parseCommand ()
  * return value is the requested integer, or BAD_NUMBER
  */
 #define BAD_NUMBER 0xFFFFEFE
+
 int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 	if (tokens[tokNo]==NULL) {
+		ESP_LOGD(TAG, "getIntArg: Missing Argument!");
 		postResponse ("Missing Argument!", RESPONSE_SYNTAX );
 		return(BAD_NUMBER);
 	}
@@ -146,13 +156,23 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 
 	if ((val < minVal) || (val > maxVal))
 		{
+		ESP_LOGD(TAG, "getIntArg - Invalid argument - out of range");
 		postResponse ("Invalid argument - out of range", RESPONSE_SYNTAX );
 		return(BAD_NUMBER);
 		}
 	return(val);
 }
 
-
+/**
+ * This sends a summary of the available commands.
+ *
+ */
+void CmdDecoder::help() {
+	postResponse("HELP:\n",RESPONSE_MORE);
+	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
+	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
+	postResponse(" eye  n   range 0...8192", RESPONSE_OK);
+}
 /**
  * Process the tokenized command, and send an appropriate response.
  *
@@ -162,11 +182,17 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
  */
 #define ISCMD(_a_) (0==strcasecmp(tokens[0], (_a_)))
 
-void CmdDecoder::disspatchCommand (int tokCount, char *tokens[])
+void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 {
 	Message *msg;
+//	ESP_LOGD(TAG, "disspatchCommand - have %d arguments", tokCount);
+//	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
+
 	int val;
-	if (ISCMD("PAUSE")) {
+	if (ISCMD("HELP")) {
+		help();
+
+	} else if (ISCMD("PAUSE")) {
 		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
@@ -183,24 +209,42 @@ void CmdDecoder::disspatchCommand (int tokCount, char *tokens[])
 
 	} else if (ISCMD("jaw" ))
 	{
-		val=getIntArg( 1, tokens, 0, 180);
 
-		msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
-				EVENT_ACTION_SETVALUE, val, 0 );
-		SwitchBoard::send(msg);
-		postResponse ("OK", RESPONSE_OK );
+		val = getIntArg (1, tokens, 0, 2000 );
+		ESP_LOGD(TAG, "Dispatch - jaw=%d", val );
+		if (val == BAD_NUMBER)
+		{
+			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
+			EVENT_ACTION_SETVALUE, val, 0 );
+			SwitchBoard::send (msg );
+			postResponse ("OK", RESPONSE_OK );
+		}
 	}
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
-		val=getIntArg(1, tokens, 0, 10000);
-		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
-				EVENT_ACTION_SETVALUE, val, val );
-		SwitchBoard::send(msg);
-		postResponse ("OK", RESPONSE_OK );
+		ESP_LOGD(TAG, "Dispatch - EYE" );
+		val = getIntArg (1, tokens, 0, 8192 );
+		if (val == BAD_NUMBER)
+		{
+			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			ESP_LOGD(TAG, "Dispatch - EYE=%d", val );
+			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+			EVENT_ACTION_SETVALUE, val, val );
+			SwitchBoard::send (msg );
+			postResponse ("OK", RESPONSE_OK );
+		}
 	}
 	else
 	{
 		// TODO: UNKNOWN COMMAND
+		ESP_LOGD(TAG, "Dispatch - unknown command");
 		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
 	return;

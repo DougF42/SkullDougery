@@ -19,6 +19,7 @@
 class Interpolate {
 public:
 	Interpolate();
+	inline void setLimitFlag() {limitFlag=true; }
 	void AddToTable(int idx, unsigned int value);
 	int table[TABLEMAX];
 	virtual ~Interpolate();
@@ -30,6 +31,7 @@ private:
 	uint32_t yTable[TABLEMAX];
 	double slope[TABLEMAX];   // We pre-calculate the slope from n-1 to n to save cycles!
 	int lastTabIdx;
+	bool limitFlag;   // If true, then never give values outside the min/max Y
 };
 
 #endif /* INTERPOLATE_H_ */

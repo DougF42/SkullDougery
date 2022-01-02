@@ -62,6 +62,7 @@ void SndPlayer::checkForCommand ()
 	{
 		// Turn 'status' into run state.
 		runState = (Player_State) status;
+		ESP_LOGD(TAG, " See remote command %d", runState);
 		return;
 	}
 
@@ -76,7 +77,7 @@ void SndPlayer::checkForCommand ()
 //	ESP_LOGD(TAG, "Switch state is %d, last state %d.", curState, lastState );
 	if ((curState == true) && (lastState == false))
 	{ // Only on transition from off to on...
-
+		ESP_LOGD(TAG, "See button press!");
 		switch (runState)
 		{
 			case (PLAYER_IDLE):
@@ -95,6 +96,9 @@ void SndPlayer::checkForCommand ()
 			case (PLAYER_REWIND):
 				// TODO: Ignore this - should never happen?
 				break;
+
+			default:
+				runState = PLAYER_REWIND; // Unknown command!
 		}
 
 	}   // end of 'if state changed'
@@ -111,21 +115,26 @@ void SndPlayer::callBack (const Message *msg)
 	switch (msg->event)
 	{
 		case (SND_EVENT_PLAYER_START):
-			xTaskNotify (myTask, SND_EVENT_PLAYER_START,
-					eSetValueWithOverwrite );
+			if ((runState == PLAYER_IDLE) || (runState == PLAYER_PAUSED))
+			{
+				xTaskNotify (myTask, PLAYER_RUNNING, eSetValueWithOverwrite );
+			}
 			break;
 
 		case (SND_EVENT_PLAYER_PAUSE):
-			xTaskNotify (myTask, SND_EVENT_PLAYER_PAUSE,
-					eSetValueWithOverwrite );
+			if (runState == PLAYER_RUNNING)
+			{
+				xTaskNotify (myTask, PLAYER_PAUSED, eSetValueWithOverwrite );
+			}
 			break;
 
-		case (SND_EVENT_PLAYER_REWIND):
-			xTaskNotify (myTask, SND_EVENT_PLAYER_REWIND,
-					eSetValueWithOverwrite );
-
+		case (SND_EVENT_PLAYER_REWIND): // rewind is also stop!
+			if ((runState == PLAYER_RUNNING) || (runState == PLAYER_PAUSED))
+			{
+				xTaskNotify (myTask, PLAYER_REWIND, eSetValueWithOverwrite );
+			}
 			break;
-	}
+	}  // END OF CASE
 	return;
 }
 

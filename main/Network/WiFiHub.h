@@ -34,11 +34,13 @@ public:
 private:
 	static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 	                                    int32_t event_id, void* event_data);
-	static void UDP_Server(void *Parameters);
+	static void UDP_Server_wait_connection (void *Parameters);
+	void UDP_Server_handleCommmands();
 	void postResponse(const char *respTxt, enum responseStatus_t respcode);
 	struct sockaddr_storage source_addr; // Who sent us a message?
 	int sock; // The socket the server is using.
 	TaskHandle_t udpServerTask;
+
 };
 
 #endif /* MAIN_NETWORK_WIFIHUB_H_ */

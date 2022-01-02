@@ -36,7 +36,8 @@ public:
 		RESPONSE_COMMAND_ERRR,   // The command was decoded as valid, but execution failed.
 		RESPONSE_UNKNOWN,        // The command itself was not recognized
 		REPSONSE_EMBEDED_NULL,   // A Null was embeded in the stream.
-		RESPONSE_SYNTAX          // There was a general syntax error.
+		RESPONSE_SYNTAX,          // There was a general syntax error.
+		RESPONSE_MORE            // There is more to follow this statement...
 		};
 
 	CmdDecoder (TASK_NAME myId);
@@ -48,9 +49,10 @@ public:
 
 protected:
 	void parseCommand();
-	void disspatchCommand(int tokCount, char *tokens[]);
+	void dispatchCommand(int tokCount, char *tokens[]);
 
 private:
+	void help();
 	char cmdBuf[CMD_BUF_MAX_LEN];
 	int  cmdBufNextChar;
 	enum TASK_NAME senderTaskName;

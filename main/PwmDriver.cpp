@@ -72,6 +72,8 @@ PwmDriver::PwmDriver (const char *name) :
 	devName = strdup ("PWMDRIVER" );
 	if (alreadyInited) return;
 	alreadyInited = true;
+	interpJaw.setLimitFlag();
+	interpEyes.setLimitFlag();
 
 #ifdef INCLUDE_FAST
 	ch_Left_eye = LEDC_CHANNEL_0;
