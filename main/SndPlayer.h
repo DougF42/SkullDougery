@@ -34,7 +34,8 @@ class SndPlayer : DeviceDef
 public:
 	SndPlayer (const char *name);
 	virtual ~SndPlayer ();
-	void playMusic(void *output_ptr);
+
+	void playMusic(void *output_ptr, bool prescan);
 	static void startPlayerTask(void *_me);
 	void callBack(const Message *msg);
 	TaskHandle_t myTask;
@@ -44,6 +45,8 @@ private:
 	void checkForCommand();
 	void testEyesAndJaws();
 
+	int eye_scale;
+	int jaw_scale;
 };
 
 #endif /* MAIN_SNDPLAYER_H_ */

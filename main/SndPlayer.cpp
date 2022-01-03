@@ -41,6 +41,8 @@ SndPlayer::SndPlayer (const char *_name) :
 {
 	runState = PLAYER_IDLE;
 	myTask = nullptr;
+	eye_scale=1;
+	jaw_scale=1;
 }
 
 SndPlayer::~SndPlayer ()
@@ -142,11 +144,20 @@ void SndPlayer::callBack (const Message *msg)
  * This is where we actually play the music.
  * It is also responsible for sending control
  * info to the eyes and jaw.
+ * If the 'prescan' mode is true, then we only read
+ * the file without doing any actual output or control, collecting
+ * min/max (scaling) info as we go.
  *
  * This is static - a pointer to the current instance
  * is passed in as the argument
+ * @param output_ptr - points to the audio output device. Ignored if prescan is true.
+ * @param prescan    - if True, then we only scan the file for max/min average, and
+ *                     exit immediatly, without doing any eye or jaw movement or audio
+ *                     output (output_ptr is ignored, should be nullptr in this case).
+ *
  */
-void SndPlayer::playMusic (void *output_ptr)
+
+void SndPlayer::playMusic (void *output_ptr, bool prescan=false)
 {
 	Output *output = (Output*) output_ptr;
 	int eye_avg = 0;
@@ -154,6 +165,12 @@ void SndPlayer::playMusic (void *output_ptr)
 	int jaw_avg = 0;
 	int jaw_avg_cnt = 0;
 	bool is_output_started = false;
+
+	int eye_min=10000;
+	int eye_max=-10000;
+	int jaw_min=10000;
+	int jaw_max=-10000;
+
 
 #if defined(ENABLE_JAW) || defined (ENABLE_EYES)
 	Message *msg;
@@ -172,6 +189,8 @@ void SndPlayer::playMusic (void *output_ptr)
 	{
 		ESP_LOGE("main", "Failed to allocate input_buf memory" );
 	}
+
+	if (prescan) runState=PLAYER_RUNNING;
 
 	while (1) // WAITING TO START READING THE FILE
 	{
@@ -259,7 +278,7 @@ void SndPlayer::playMusic (void *output_ptr)
 //				ESP_LOGD(TAG, "HAVE %d bytes of data in 1 block", samples);
 
 				// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
-				if (!is_output_started)
+				if ((!is_output_started) && (!prescan))
 				{
 					output->start (info.hz );
 					is_output_started = true;
@@ -289,14 +308,20 @@ void SndPlayer::playMusic (void *output_ptr)
 						eye_avg /= EYE_AVG_SIZE;
 #ifdef ENABLE_EYES
 						// ESP_LOGD(TAG, "SEND IT!   Average = %d", eye_avg);
-						msg = Message::future_Message (TASK_NAME::EYES,
-								TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-								eye_avg * 10, eye_avg * 10 );
-						SwitchBoard::send (msg );
+						if (!prescan)
+						{
+							msg = Message::future_Message (TASK_NAME::EYES,
+									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+									eye_avg * 10, eye_avg * 10 );
+							SwitchBoard::send (msg );
+						}
 #endif
+						if (eye_min > eye_avg) eye_min=eye_avg;
+						if (eye_max < eye_avg ) eye_max=eye_avg;
 						eye_avg = 0;
 						eye_avg_cnt = 0;
 					}
+
 
 					// JAW MOTION
 					jaw_avg += abs (pcm[i] );
@@ -307,18 +332,28 @@ void SndPlayer::playMusic (void *output_ptr)
 						//			ESP_LOGD(TAG, "Jaw average count %d total %d average %d", jaw_avg_cnt, jaw_avg, jaw_avg/jaw_avg_cnt);
 						jaw_avg /= jaw_avg_cnt;
 #ifdef ENABLE_JAW
-						msg = Message::future_Message (TASK_NAME::JAW,
-								TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-								jaw_avg, 0 );
-						SwitchBoard::send (msg );
+						if (!prescan)
+						{
+							msg = Message::future_Message (TASK_NAME::JAW,
+									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+									jaw_avg, 0 );
+							SwitchBoard::send (msg );
+						}
 #endif
+						if (jaw_min > jaw_avg) jaw_min=jaw_avg;
+						if (jaw_max < jaw_avg) jaw_max=jaw_avg;
 						jaw_avg = 0;
 						jaw_avg_cnt = 0;
 					}
 
 				}
+
 				// write the decoded samples to the I2S output
-				output->write (pcm, samples );
+				if (!prescan)
+				{
+					output->write (pcm, samples );
+				}
+
 				// keep track of how many samples we've decoded
 				decoded += samples;
 			}
@@ -326,7 +361,11 @@ void SndPlayer::playMusic (void *output_ptr)
 		} // END of while PLAY THIS FILE
 		ESP_LOGI("main", "Finished playing file\n" );
 		fclose (fp );
+		free(pcm);
+		free(input_buf);
+		if (prescan) break;
 	}  // END of WAITING TO START READING THE FILE
+	return;
 }
 
 /**
@@ -362,6 +401,7 @@ void SndPlayer::testEyesAndJaws ()
 	SwitchBoard::send (msg );  // Close JAW
 
 }
+
 
 /**
  * This performs some initialization,
@@ -410,6 +450,8 @@ void SndPlayer::startPlayerTask (void *_me)
 #if defined(ENABLE_JAW) || defined (ENABLE_EYES)
 	me->testEyesAndJaws ();
 #endif
+
+	me->playMusic(output, true); // Prescan...
 
 	// NOW LETS START THE MUSIC PLAYER...
 	//xTaskCreatePinnedToCore(playMusic, "Player", 8092, this, tskIDLE_PRIORITY, &myTask, ASSIGN_MUSIC_CORE);
