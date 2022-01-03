@@ -386,6 +386,7 @@ void RmNvs::set_str(const char *key, const char *value) {
 	int idx=findKey(key);
 	// dont free any longer!    free(curValues[idx].curValue);
 	strncpy(curValues[idx].curString, value, sizeof(curValues[idx].curString));
+	curValues[idx].curString[sizeof(curValues[idx].curString)] = '\0';
 	curValues[idx].changed=true;
 	return;
 }
