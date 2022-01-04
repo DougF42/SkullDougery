@@ -17,8 +17,9 @@
  *     STRING can not be more than 32 chars.
  *     INT    is really singed 32 bit.
  *     ADDR   is unsigned 32 bit, address is always in network-byte-order
+ *     BOOL   is actually an integer, and follows C rules (0 if false, any value is true)
  */
-enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR,  RMNVS_END };
+enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR, RMNVS_BOOL,  RMNVS_END };
 
 // This defines the configuration settings that can be accessed.
 // NOTE: New settings must also be defined in RMNVS_init_values.
@@ -52,12 +53,14 @@ public:
 	static int get_int (const char *key);
 	static in_addr_t get_addr(const char *key);
 	static int get_addr_as_string(const char *key, char *buf);
+	static bool is_set(const char *key);
 
 // Change a setting. Does NOT commit the change
 	static int set_str(const char *key, const char *value);
 	static int set_int (const char *key, int32_t value);
 	static int set_addr (const char *key, in_addr_t value);
 	static int set_addr_as_string (const char *key, const char *value);
+	static int set_bool(const char *key, bool value);
 
 	RMNVS_DTA_t get_info (int idx, bool **changeFlag, const char **keyName,
 			const void **dta);
@@ -67,6 +70,7 @@ private:
 	static void initSingleString(int idx,const  char *key, const char *val);
 	static void initSingleInt(int idx, const char *key, int32_t val);
 	static void initSingleAddr( int idx, const char *key, const char *addrStr);
+	static void initSingleBool( int idx, const char *key, bool val);
 	static void init_values();
 	static void load_from_nvs();
 	static int findKey(const char *keyname);

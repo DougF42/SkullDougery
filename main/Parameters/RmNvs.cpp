@@ -49,6 +49,7 @@ struct curValues_t {
 		char curString[32]; // Current value of this key (if string). Not longer than 32 chars
 		int32_t curNumber;  // Current value of this key (if integer).
 		in_addr_t curAddr;   // Current value of this key (if an address).
+		int       curBool;   // Current value of this key (if boolean)
 	};
 } ;
 
@@ -107,6 +108,34 @@ void RmNvs::initSingleInt(int idx, const char *key, int val) {
 	curValues[idx].curNumber =  val;
 }
 
+
+/**
+ * This sets individual string defaults - it is ONLY used  by RMNVS_init_values.
+ * As such, there should NEVER be any failure here - if failure, we panic and abort.
+ */
+void RmNvs::initSingleBool(int idx, const char *key, bool val) {
+	if (idx > sizeof(curValues)/sizeof(struct curValues_t)) {
+		ESP_LOGE(TAG, "In RMNVS: initSingleValues. Index is %d, larger than limit of %d",
+				idx, sizeof(curValues)/sizeof(struct curValues_t));
+		abort();
+	}
+
+	curValues[idx].changed=true;
+	if (strlen(key) > (sizeof(curValues[idx].keyName)-1)) {
+		ESP_LOGE(TAG, "In RMNVS: initSingleValues. Key name %s is %d chars long, max is %d",
+				key, strlen(key), (sizeof(curValues[idx].keyName)-1));
+		abort();
+	}
+	strcpy( curValues[idx].keyName, key);
+
+	curValues[idx].datatype = RMNVS_INT;
+	if (val)
+		curValues[idx].curBool = true;
+	else
+		curValues[idx].curBool = false;
+}
+
+
 /**
  * Initializes an address in the paramter table. ONLY used by RMNVS_init_values.
  * @param idx - what index to set.
@@ -143,7 +172,7 @@ void RmNvs::init_values() {
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleString(idx++, RMNVS_FORCE_AP_MODE, "yes");
-	initSingleInt   (idx++, RMNVS_USE_DHCP,       0);
+	initSingleBool   (idx++, RMNVS_USE_DHCP,       false);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
 	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");
@@ -206,14 +235,26 @@ void RmNvs::commit ()
 				break;
 
 			case (RMNVS_ADDR):
-						if (curValues[idx].changed)
-						{
+				if (curValues[idx].changed)
+				{
 //							ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
 //									curValues[idx].keyName );
-							err = nvs_set_u32 (handle, curValues[idx].keyName,
-									curValues[idx].curAddr );
-						}
+					err = nvs_set_u32 (handle, curValues[idx].keyName,
+							curValues[idx].curAddr );
+				}
 				break;
+
+			case (RMNVS_BOOL):
+				if (curValues[idx].changed)
+				{
+					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
+							curValues[idx].keyName );
+					err = nvs_set_i8 (handle, curValues[idx].keyName,
+							curValues[idx].curBool );
+				}
+
+				break;
+
 
 			case(RMNVS_END):
 				break;
@@ -282,33 +323,43 @@ void RmNvs::clear_nvs() {
  * This attempts to load any values that are stored in NVS.
  * It is NOT an error if one is missing -
  */
-void RmNvs::load_from_nvs() {
+void RmNvs::load_from_nvs ()
+{
 	int idx;
-	int err=ESP_OK;
+	int err = ESP_OK;
 
-	for (idx=0; idx<NOOFCURVALUES; idx++) {
-		switch(curValues[idx].datatype) {
-			case(RMNVS_STRING):
-					size_t len;
-					err=nvs_get_str(handle, curValues[idx].keyName, curValues[idx].curString, &len);
-			break;
+	for (idx = 0; idx < NOOFCURVALUES; idx++ )
+	{
+		switch (curValues[idx].datatype)
+		{
+			case (RMNVS_STRING):
+				size_t len;
+				err = nvs_get_str (handle, curValues[idx].keyName,
+						curValues[idx].curString, &len );
+				break;
 
-			case(RMNVS_INT):
-				err=nvs_get_i32(handle, curValues[idx].keyName, &(curValues[idx].curNumber) );
-					break;
+			case (RMNVS_INT):
+				err = nvs_get_i32 (handle, curValues[idx].keyName,
+						&(curValues[idx].curNumber) );
+				break;
 
-			case(RMNVS_ADDR):
-				err=nvs_get_u32(handle, curValues[idx].keyName, &(curValues[idx].curAddr) );
-					break;
+			case (RMNVS_ADDR):
+				err = nvs_get_u32 (handle, curValues[idx].keyName,
+						&(curValues[idx].curAddr) );
+				break;
 
-			case (RMNVS_END ):
-					break;
+			case (RMNVS_BOOL):
+				err = nvs_get_i32 (handle, curValues[idx].keyName,
+						&(curValues[idx].curBool) );
+				break;
+
+			case (RMNVS_END):
+				break;
 		}
-		if (err==ESP_OK) curValues[idx].changed=false;
+		if (err == ESP_OK) curValues[idx].changed = false;
 	}
 	return;
 }
-
 
 /**
  * Initialize the NVS memory system.
@@ -475,6 +526,48 @@ in_addr_t RmNvs::get_addr(const char *key) {
 	return (curValues[idx].curAddr);
 }
 
+
+int RmNvs::set_bool(const char *key, bool value) {
+	int idx = findKey (key);
+	if (idx < 0)
+	{
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		return (BAD_NUMBER);
+	}
+	curValues[idx].changed = true;
+	curValues[idx].curNumber = value;
+	return(ESP_OK);
+}
+
+/**
+ * Get the requested value as an integer.
+ *
+ * Returns BAD_NUMBER (from messages.h) if any error
+ */
+bool RmNvs::is_set (const char *key)
+{
+	int idx = findKey (key );
+	if (idx < 0)
+	{
+		ESP_LOGE(TAG, "KEY '%s' not found in table", key);
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_BOOL)
+	{
+		ESP_LOGE(TAG, "KEY '%s' is not BOOLEAN!!", key);
+		return (BAD_NUMBER);
+	}
+	return ( curValues[idx].curNumber);
+}
+
+
+
+
 /**
  * Get the address in string format
  * @param key - the key to look up.
@@ -557,12 +650,12 @@ void RmNvs::dumpTable ()
 	char header[80];
 	for (int idx = 0; idx < NOOFCURVALUES; idx++ )
 	{
-		sprintf (header, "---CONFIG: Index: %d  Key: %s   changeFlag %d ", idx,	curValues[idx].keyName, curValues[idx].changed );
+		sprintf (header, "---CONFIG: Index: %d  Key: %s   changeFlag %d ", idx,
+				curValues[idx].keyName, curValues[idx].changed );
 		switch (curValues[idx].datatype)
 		{
 			case (RMNVS_STRING):
-				ESP_LOGD(header, "Type: String: %s",
-						curValues[idx].curString );
+				ESP_LOGD(header, "Type: String: %s", curValues[idx].curString );
 				break;
 			case (RMNVS_INT):
 				ESP_LOGD(header, "Type: Integer: %d",
@@ -572,6 +665,10 @@ void RmNvs::dumpTable ()
 				RmNvs::get_addr_as_string (curValues[idx].keyName, buf );
 				ESP_LOGD(header, "Type: Address:%d (%s)",
 						curValues[idx].curAddr, buf );
+				break;
+
+			case (RMNVS_BOOL):
+				ESP_LOGD(header, "Type: Bool:   %d", curValues[idx].curBool );
 				break;
 
 			case (RMNVS_END):
