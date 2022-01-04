@@ -6,6 +6,7 @@
 // that a integer conversion failed.
 #define BAD_NUMBER 0xFFFFEFE
 
+#define RESET_SWITCH GPIO_NUM_33
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_CHANNEL 1
 #define SKULL_WIFI_SSID "Skulldougery"

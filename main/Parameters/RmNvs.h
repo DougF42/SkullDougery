@@ -37,6 +37,7 @@ enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR,  RMNVS_END };
 
 class RmNvs
 {
+public:
 	/*
 	 * The class methods and members are static,
 	 * so we wont need to implement it in each
@@ -46,7 +47,6 @@ class RmNvs
 
 	static void commit ();
 	static void clear_nvs ();
-	static bool nvs_isSet ();
 
 	static const char* get_str (const char *key);
 	static int get_int (const char *key);
@@ -61,6 +61,7 @@ class RmNvs
 
 	RMNVS_DTA_t get_info (int idx, bool **changeFlag, const char **keyName,
 			const void **dta);
+	static void dumpTable();
 private:
 	// TODO: Later:   bool getIdx (int idx, CMDMSGPTR msg);
 	static void initSingleString(int idx,const  char *key, const char *val);
