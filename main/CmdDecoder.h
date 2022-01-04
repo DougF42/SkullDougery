@@ -14,6 +14,7 @@
 #include "freertos/semphr.h"
 #include "string.h"
 #include "Sequencer/Message.h"
+#include "config.h"
 
 #ifndef MAIN_CMDDECODER_H_
 #define MAIN_CMDDECODER_H_

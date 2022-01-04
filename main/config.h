@@ -1,5 +1,10 @@
 #include <freertos/FreeRTOS.h>
 #include <driver/i2s.h>
+#include <climits>
+
+// This a 'random' number that we use to indicate
+// that a integer conversion failed.
+#define BAD_NUMBER 0xFFFFEFE
 
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_CHANNEL 1

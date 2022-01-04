@@ -10,6 +10,11 @@
  *
  *  Created on: Jun 2, 2021
  *      Author: doug
+ *
+ *  About IP addresses:
+ *      The current code only does IPV4, adresses are 4 bytes (uint32_t).
+ *      I got tired of tracking where various address conversion routines, so I
+ *         have encapsulated them here.
  */
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -18,7 +23,10 @@
 #include "esp_netif.h"
 #include "nvs.h"
 #include "RmNvs.h"
-
+#include "../config.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define NVS_VERSION "1.0"
 
@@ -40,7 +48,7 @@ struct curValues_t {
 	union {
 		char curString[32]; // Current value of this key (if string). Not longer than 32 chars
 		int32_t curNumber;  // Current value of this key (if integer).
-		// TODO: Add adresss type
+		in_addr_t curAddr;   // Current value of this key (if an address).
 	};
 } ;
 
@@ -99,6 +107,31 @@ void RmNvs::initSingleInt(int idx, const char *key, int val) {
 	curValues[idx].curNumber =  val;
 }
 
+/**
+ * Initializes an address in the paramter table. ONLY used by RMNVS_init_values.
+ * @param idx - what index to set.
+ * @param key - the key to use.
+ * @param addrStr - the initial address. Note that although we take the address as
+ *              a string, it is actually stored network-byte-order.
+ */
+void RmNvs::initSingleAddr( int idx, const char *key, const char *addrStr) {
+	if (idx > sizeof(curValues)/sizeof(struct curValues_t)) {
+		ESP_LOGE(TAG, "In RMNVS: initSingleAddr. Index is %d, larger than limit of %d",
+				idx, sizeof(curValues)/sizeof(struct curValues_t));
+		abort();
+	}
+
+	curValues[idx].changed=true;
+	if (strlen(key) > (sizeof(curValues[idx].keyName)-1)) {
+		ESP_LOGE(TAG, "In RMNVS: initSingleValues. Key name %s is %d chars long, max is %d",
+				key, strlen(key), (sizeof(curValues[idx].keyName)-1));
+		abort();
+	}
+	strcpy( curValues[idx].keyName, key);
+	curValues[idx].datatype = RMNVS_INT;
+	inet_aton(addrStr, &curValues[idx].curAddr);
+
+}
 
 /**
  * This initializes the values in the curValues structure
@@ -111,37 +144,18 @@ void RmNvs::init_values() {
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleString(idx++, RMNVS_FORCE_AP_MODE, "yes");
 	initSingleInt   (idx++, RMNVS_USE_DHCP,       0);
-	initSingleString(idx++, RMNVS_IP,             "0.0.0.0");
-	initSingleString(idx++, RMNVS_NETMASK,        "255.255.255.0");
+	initSingleAddr  (idx++, RMNVS_IP,             "0.0.0.0");
+	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
 	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");
 	initSingleInt   (idx++, RMNVS_CMD_PORT,       3000);
-	initSingleString(idx++, RMNVS_SRV_ADDR,       "192.168.1.2");
+	initSingleAddr  (idx++, RMNVS_SRV_ADDR,       "192.168.1.2");
 	initSingleInt   (idx++, RMNVS_SRV_PORT,       3001);
-	initSingleString(idx++, RMNVS_DNS_ADDR,       "8.8.8.8");
-	initSingleInt(idx++, RMNVS_WIFI_CHANNEL,      1);
+	initSingleAddr  (idx++, RMNVS_DNS_ADDR,       "8.8.8.8");
+	initSingleInt   (idx++, RMNVS_WIFI_CHANNEL,      1);
 	initSingleString(idx++, RMVS_END,             "END");
 	curValues[idx].datatype=RMNVS_END;   // Force END flag.
 	NOOFCURVALUES=idx;
 };
-
-
-
-/**
- * Turn a number-of-bits into a network mask.
- */
-/* TODO:
-esp_ip4_addr_t RMNVS_make_netmask(int  noOfBits) {
-	esp_ip4_addr_t mask = {0};
-	int bit;
-	for (bit=0; bit<32; bit++) {
-		if (bit<=noOfBits) {
-			mask.addr |= 1;
-		}
-		mask.addr=mask.addr<<1;
-	}
-	return(mask);
-}
-*/
 
 
 
@@ -191,13 +205,23 @@ void RmNvs::commit ()
 
 				break;
 
+			case (RMNVS_ADDR):
+						if (curValues[idx].changed)
+						{
+							ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
+									curValues[idx].keyName );
+							err = nvs_set_u32 (handle, curValues[idx].keyName,
+									curValues[idx].curAddr );
+						}
+				break;
+
 			case(RMNVS_END):
 				break;
 		}
 
 		if (err != ESP_OK)
 		{
-			// TODO: Something wicked this way comes!
+			// Something wicked this way comes!
 			ESP_LOGE(TAG,
 					"In RMNVS_commit - something wicked this way comes!  Key %d",
 					idx );
@@ -208,11 +232,13 @@ void RmNvs::commit ()
 	return;
 }
 
+
 /**
  * This can be used to get a look at the current state
  * of the in-core settings.
  * The user is responsible for decoding dta, according to
  * the data type returned.
+ *
  * @param idx - the index of the item to be returned
  * @param changeFlag - pointer to location to store the 'changed' flag - 0 normally, 1 if this was changed but not saved.
  * @param keyName    - We will store a pointer to the name of this key here. DO NOT MODIFY the keyname!
@@ -220,12 +246,12 @@ void RmNvs::commit ()
  * @return           - we return the data type of this item. RMNVS_END if the index is out of range.
  *                     It is up to the caller to interpret the data in a reasonable fashion,
  */
-RMNVS_DTA_t RmNvs::get_info (int idx, bool *changeFlag, const char *keyName,
-		const void *dta)
+RMNVS_DTA_t RmNvs::get_info (int idx, bool **changeFlag, const char **keyName,
+		const void **dta)
 {
-	keyName = curValues[idx].keyName;
-	dta = (void*) curValues[idx].curString;
-	*changeFlag = curValues[idx].changed;
+	*keyName = curValues[idx].keyName;
+	*dta = (void*) curValues[idx].curString;
+	*changeFlag = &(curValues[idx].changed);
 	return(curValues[idx].datatype);
 }
 
@@ -264,12 +290,15 @@ void RmNvs::load_from_nvs() {
 		switch(curValues[idx].datatype) {
 			case(RMNVS_STRING):
 					size_t len;
-					err=nvs_get_str(handle, curValues[idx].keyName,
-					   curValues[idx].curString, &len);
+					err=nvs_get_str(handle, curValues[idx].keyName, curValues[idx].curString, &len);
 			break;
 
 			case(RMNVS_INT):
-				err=nvs_get_i32(handle, curValues[idx].curString, &(curValues[idx].curNumber) );
+				err=nvs_get_i32(handle, curValues[idx].keyName, &(curValues[idx].curNumber) );
+					break;
+
+			case(RMNVS_ADDR):
+				err=nvs_get_u32(handle, curValues[idx].keyName, &(curValues[idx].curAddr) );
 					break;
 
 			case (RMNVS_END ):
@@ -291,7 +320,7 @@ bool RmNvs::nvs_isSet(void) {
 
 /**
  * Initialize the NVS memory system.
- * Only called once on startup.
+ *   **** Only called once on startup. ****
  *
  *
  * @param forceReset - if true, then intialize the partition.
@@ -358,7 +387,7 @@ int RmNvs::findKey(const char *keyname) {
 	for (idx=0; idx<NOOFCURVALUES; idx++) {
 		if (EQUALSTR( keyname, curValues[idx].keyName)) return(idx);
 	}
-	ESP_LOGD(TAG, "findKey failed to find key %s", keyname);
+	ESP_LOGE(TAG, "findKey failed to find key %s", keyname);
 	return (-1);
 }
 
@@ -367,28 +396,44 @@ int RmNvs::findKey(const char *keyname) {
  * Get the config value from NVS  as a string, based on its key
  * We return a pointert to a CONSTANT - dont modify it, or try
  * to 'free' it.
+ * @param key - the data item to read.
+ * @return - pointer to the string in static memmory. DO NOT MODIFY OR FREE!
+ *      nullptr if not found.
  */
 const char *RmNvs::get_str(const char *key) {
 	int idx=findKey(key);
 
 	if (idx<0) {
-		ESP_LOGD(TAG, "In RMNVS_get: findKey returned %d for key %s", idx, key);
-		return(NULL);
+		ESP_LOGE(TAG, "In RMNVS_get: findKey failed to find key '%s'", key);
+		return(nullptr);
 	}
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		ESP_LOGE(TAG, "KEY %s is not a string!", key);
+		return (nullptr);
+	}
+
 	return(curValues[idx].curString);
 }
 
 /**
- * Set the config value.
- * This silently truncates if the value is too long!
+ * Set the string value.
+ * This silently truncates if the string is too long!
  */
-void RmNvs::set_str(const char *key, const char *value) {
-	int idx=findKey(key);
+int RmNvs::set_str (const char *key, const char *value)
+{
+	int idx = findKey (key );
 	// dont free any longer!    free(curValues[idx].curValue);
-	strncpy(curValues[idx].curString, value, sizeof(curValues[idx].curString));
+	if (idx<0)
+		{
+		return(BAD_NUMBER);
+		}
+	strncpy (curValues[idx].curString, value,
+			sizeof(curValues[idx].curString) );
 	curValues[idx].curString[sizeof(curValues[idx].curString)] = '\0';
-	curValues[idx].changed=true;
-	return;
+	curValues[idx].changed = true;
+	return(ESP_OK);
 }
 
 /**
@@ -396,21 +441,135 @@ void RmNvs::set_str(const char *key, const char *value) {
  *
  * Returns BAD_NUMBER (from messages.h) if any error
  */
-int  RMNVS_get_number(const char *key) {
-	int res=validInt( RMNVS_get(key), true);
-	if (res==BAD_NUMBER) {
-		ESP_LOGE(TAG, "ERROR: RMNVS returned bad number for key %s", key);
-		abort();
+int RmNvs::get_int (const char *key)
+{
+	int idx = findKey (key );
+	if (idx < 0)
+	{
+		ESP_LOGE(TAG, "KEY '%s' not found in table", key);
+		return (BAD_NUMBER);
 	}
-	return(res);
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		ESP_LOGE(TAG, "KEY '%s' is not an integer!", key);
+		return (BAD_NUMBER);
+	}
+	return (curValues[idx].curNumber);
 }
 
 /**
  * Set a numeric value.
  *   (the value is assumed to be an int )
+ *   @return - ESP_OK normally, BAD_NUMBER
+ *            if the key was not found
  */
-void RMNVS_set_number(const char *key, int value) {
-	char buf[64];
-	sprintf(buf, "%d", value);
-	RMNVS_set(key, buf);
+int RmNvs::set_int(const char *key, int32_t value) {
+	int idx = findKey (key);
+	if (idx < 0)
+	{
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		return (BAD_NUMBER);
+	}
+	curValues[idx].changed = true;
+	curValues[idx].curNumber = value;
+	return(ESP_OK);
+}
+
+
+/**
+ * Get the address in internet byte order.
+ *  This should be suitable for various network-related function calls.
+ */
+in_addr_t RmNvs::get_addr(const char *key) {
+	int idx = findKey (key );
+	if (idx < 0)
+	{
+		ESP_LOGE(TAG, "KEY '%s' not found in table", key);
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_ADDR)
+	{
+		ESP_LOGE(TAG, "KEY '%s' is not an address!", key);
+		return (BAD_NUMBER);
+	}
+	return (curValues[idx].curAddr);
+}
+
+/**
+ * Get the address in string format
+ * @param key - the key to look up.
+ * @param buf - a buffer big enough for the resulting string (at least 16 bytes)
+ *
+ * @return - 0 normally, 'BAD_NUMBER' if any error.
+ */
+int RmNvs::get_addr_as_string(const char *key, char *buf) {
+	int idx = findKey (key );
+	if (idx < 0)
+	{
+		ESP_LOGE(TAG, "KEY '%s' not found in table", key);
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_ADDR)
+	{
+		ESP_LOGE(TAG, "KEY '%s' is not an address!", key);
+		return (BAD_NUMBER);
+	}
+
+	char *cptr=inet_ntoa(curValues[idx].curAddr);
+	strcpy(buf, cptr);
+	return(0);
+
+}
+
+
+/**
+ * Set the paramter to the given network-byte ordered value.
+ */
+int RmNvs::set_addr (const char *key, in_addr_t value) {
+	int idx = findKey (key);
+	if (idx < 0)
+	{
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		return (BAD_NUMBER);
+	}
+	curValues[idx].changed = true;
+	curValues[idx].curAddr = value;
+	return(ESP_OK);
+}
+
+/**
+ * This converts the given null-terminated string to the
+ * network-byte order value (see inet_aton) and stores it
+ * @oaram key - the paramter to set
+ * @param value - pointer to the string to set.
+ */
+int RmNvs::set_addr_as_string (const char *key, const char *value) {
+	int idx = findKey (key);
+	in_addr_t adr;
+
+	if (idx < 0)
+	{
+		return (BAD_NUMBER);
+	}
+
+	if (curValues[idx].datatype != RMNVS_INT)
+	{
+		return (BAD_NUMBER);
+	}
+	int res=inet_aton(value, &adr);
+	if (res==0) return(BAD_NUMBER);
+	curValues[idx].changed=true;
+	curValues[idx].curAddr = adr;
+	return res;
 }

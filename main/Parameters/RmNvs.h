@@ -11,15 +11,20 @@
 #include "esp_netif.h"
 
 /**
+ * KEYS can not be more than 32 characters.
+ *
  * The known datatypes:
+ *     STRING can not be more than 32 chars.
+ *     INT    is really singed 32 bit.
+ *     ADDR   is unsigned 32 bit, address is always in network-byte-order
  */
-enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_END };
+enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR,  RMNVS_END };
 
 // This defines the configuration settings that can be accessed.
 // NOTE: New settings must also be defined in RMNVS_init_values.
 #define RMNVS_KEY_WIFI_SSID "ssid"
 #define RMNVS_KEY_WIFI_PASS "pass"
-#define RMNVS_WIFI_CHANNEL  "CHANNEL"
+#define RMNVS_WIFI_CHANNEL  "channel"
 #define RMNVS_FORCE_AP_MODE  "APmode"
 #define RMNVS_USE_DHCP       "dhcp"
 #define RMNVS_IP            "addr"
@@ -44,20 +49,23 @@ class RmNvs
 	static bool nvs_isSet ();
 
 	static const char* get_str (const char *key);
-	static int get_number (const char *key);
-	static int get_addr(const char *key);
+	static int get_int (const char *key);
+	static in_addr_t get_addr(const char *key);
+	static int get_addr_as_string(const char *key, char *buf);
 
 // Change a setting. Does NOT commit the change
-	static void set_str(const char *key, const char *value);
-	static void set_number (const char *key, int32_t value);
-	static void set_addr (const char *key, int value);
+	static int set_str(const char *key, const char *value);
+	static int set_int (const char *key, int32_t value);
+	static int set_addr (const char *key, in_addr_t value);
+	static int set_addr_as_string (const char *key, const char *value);
 
-	RMNVS_DTA_t get_info (int idx, bool *changeFlag, const char *keyName,
-			const void *dta);
+	RMNVS_DTA_t get_info (int idx, bool **changeFlag, const char **keyName,
+			const void **dta);
 private:
 	// TODO: Later:   bool getIdx (int idx, CMDMSGPTR msg);
 	static void initSingleString(int idx,const  char *key, const char *val);
 	static void initSingleInt(int idx, const char *key, int32_t val);
+	static void initSingleAddr( int idx, const char *key, const char *addrStr);
 	static void init_values();
 	static void load_from_nvs();
 	static int findKey(const char *keyname);

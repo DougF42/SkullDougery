@@ -29,6 +29,7 @@
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
 #include "SndPlayer.h"
+#include "config.h"
 
 static const char *TAG="CmdDecoder::";
 
@@ -143,7 +144,7 @@ void CmdDecoder::parseCommand ()
  * If there is an error, we send a syntax error.
  * return value is the requested integer, or BAD_NUMBER
  */
-#define BAD_NUMBER 0xFFFFEFE
+
 
 int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 	if (tokens[tokNo]==NULL) {

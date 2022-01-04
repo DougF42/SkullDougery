@@ -36,9 +36,18 @@ void app_main ()
 		ret = nvs_flash_init ();
 	}
 	ESP_ERROR_CHECK(ret );
+	// TODO: Start and load NVS default params here
+
 #ifdef ENABLE_WIFI
+
 	WiFiHub wifi(TASK_NAME::UDP);
+	// TODO: SELECT BETWEEN HUB and STAtion modes???
+	// Start Network (Access Point)
+	wifi.WiFi_HUB_init();
+	// wifiEiFi_STA_init(); ???
 #endif
+
+
 	TaskHandle_t switchboardHandle;
 
 	// Start Switchboard first
@@ -47,11 +56,6 @@ void app_main ()
 			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
 	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
-
-#ifdef ENABLE_WIFI
-	// Start Network (Access Point)
-	wifi.WiFi_HUB_init();
-#endif
 
 	SndPlayer player("Player");
 	//player.startPlayerTask();
