@@ -35,7 +35,7 @@ public:
 	SndPlayer (const char *name);
 	virtual ~SndPlayer ();
 
-	void playMusic(void *output_ptr, bool prescan);
+	void playMusic(void *output_ptr);
 	static void startPlayerTask(void *_me);
 	void callBack(const Message *msg);
 	TaskHandle_t myTask;
