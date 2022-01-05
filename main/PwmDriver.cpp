@@ -34,6 +34,7 @@
  *     PWM_EVENT_SET - This sets the output pulse width to a 'value' scaled from 0 to 100
  *      (i.e.: A percentage).
  *
+ *NOTE: Inputs are expected to be mapped to range 0...1000.
  */
 #include <cmath>
 #include "freertos/FreeRTOS.h"
@@ -113,11 +114,11 @@ PwmDriver::PwmDriver (const char *name) :
 
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.AddToTable(0, servo_min);
-	interpJaw.AddToTable(2000,servo_max);  // 2000 is max value from audio - arbitrary.
+	interpJaw.AddToTable(1000,servo_max);  // 2000 is max value from audio - arbitrary.
 
 	// TODO: SET UP INTERP TABLE FOR LIGHTS
 	interpEyes.AddToTable(0, 0);
-	interpEyes.AddToTable(8192, 8192);
+	interpEyes.AddToTable(1000, 8192);
 #endif
 }
 

@@ -300,6 +300,7 @@ void SndPlayer::playMusic (void *output_ptr)
 					{
 						eye_avg /= EYE_AVG_SIZE;
 #ifdef ENABLE_EYES
+						eye_avg = map(eye_avg, 0, 3200, 0, 1000);
 						msg = Message::future_Message (TASK_NAME::EYES,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									eye_avg * 10, eye_avg * 10 );
@@ -318,6 +319,7 @@ void SndPlayer::playMusic (void *output_ptr)
 					{
 						jaw_avg /= jaw_avg_cnt;
 #ifdef ENABLE_JAW
+						jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
 						msg = Message::future_Message (TASK_NAME::JAW,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									jaw_avg, 0 );
@@ -342,9 +344,9 @@ void SndPlayer::playMusic (void *output_ptr)
 
 		ESP_LOGI("main", "Finished playing file\n" );
 		fclose (fp );
-		free(pcm);
-		free(input_buf);
 	}  // END of WAITING TO START READING THE FILE
+	ESP_LOGD(TAG, "*******************************OOPS - should not return!***************");
+
 	return;
 }
 
@@ -368,7 +370,7 @@ void SndPlayer::testEyesAndJaws ()
 	EVENT_ACTION_SETVALUE, 255, 0 );
 	SwitchBoard::send (msg );  // Right EYE
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 2000, 0 );
+	EVENT_ACTION_SETVALUE, 1000, 0 );
 	SwitchBoard::send (msg );  // Close JAW
 
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
@@ -377,7 +379,7 @@ void SndPlayer::testEyesAndJaws ()
 	EVENT_ACTION_SETVALUE, 0, 0 );
 	SwitchBoard::send (msg );
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 1000, 0 );
+	EVENT_ACTION_SETVALUE, 500, 0 );
 	SwitchBoard::send (msg );  // Close JAW
 
 }
