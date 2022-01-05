@@ -30,6 +30,7 @@
 #include "Sequencer/SwitchBoard.h"
 #include "SndPlayer.h"
 #include "config.h"
+#include "Parameters/RmNvs.h"
 
 static const char *TAG="CmdDecoder::";
 
@@ -172,7 +173,8 @@ void CmdDecoder::help() {
 	postResponse("HELP:\n",RESPONSE_MORE);
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
-	postResponse(" eye  n   range 0...8192", RESPONSE_OK);
+	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
+	postResponse(" set  SSID, PASS, AP mode, ADDR, MASK, PORT", RESPONSE_OK);
 }
 /**
  * Process the tokenized command, and send an appropriate response.
@@ -241,11 +243,89 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
+	else if (ISCMD("set")) // any of the SET commands
+	{
+		setCommands( tokCount, tokens);
+	}
 	else
 	{
 		// TODO: UNKNOWN COMMAND
 		ESP_LOGD(TAG, "Dispatch - unknown command");
 		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
+	}
+	return;
+}
+
+/**
+ * This will handle any 'set *' command...
+ * it is called from dispaychCommand, which has already identified
+ *   that the command name is 'set'.
+ * This subroutine issues any responses that are needed.
+ *
+ * @param tokCount - how many tokens were parsed?
+ * @param tokens   - character array of pointers to the tokens
+ * Available:
+ *    SET SSID <txt>
+ *    SET PASSWORD <txt>
+ *    SET AP <true | false | 1 | 0 | y |n.  Default false.
+ */
+#define ISARG(_x_, _a_) (0==strcasecmp(tokens[_x_], (_a_)))
+void CmdDecoder::setCommands (int tokCount, char *tokens[])
+{
+	if (tokCount < 3)
+	{
+		postResponse ("Missing paramter name or value in SET commnad",
+				RESPONSE_UNKNOWN );
+		return;
+	}
+
+
+	if (ISARG(1, "SSID" ))
+	{
+		RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
+		postResponse ("OK", RESPONSE_OK );
+	}
+	else if (ISARG(1, "PASS" ))
+	{
+		RmNvs::set_str (RMNVS_KEY_WIFI_PASS, tokens[2] );
+		postResponse ("OK", RESPONSE_OK );
+	}
+	else if (ISARG(1, "AP" ))
+	{
+		char c = tolower (tokens[2][1] );
+		bool apstate = (c == '1') || (c = 'y') || (c == 't');
+		RmNvs::set_bool (RMNVS_FORCE_AP_MODE, apstate );
+		if (apstate)
+			postResponse ("OK - AP will be enabled on next boot", RESPONSE_OK );
+		else
+			postResponse ("OK - AP will be disabled on next boot",RESPONSE_OK );
+	}
+	else if (ISARG(1, "ADDR"))
+	{
+		RmNvs::set_addr_as_string(RMNVS_IP, tokens[2]);
+		postResponse ("OK", RESPONSE_OK);
+	}
+	else if (ISARG(1, "MASK"))
+	{
+		RmNvs::set_addr_as_string(RMNVS_NETMASK, tokens[2]);
+		postResponse ("OK", RESPONSE_OK);
+	}
+	else if (ISARG(1, "PORT"))
+	{
+		uint32_t val= strtol(tokens[2], NULL, 0);
+		if ((val<=0)|| (val>=65535)) {
+			postResponse("Port number out of range - must be between 1 and 65535", RESPONSE_COMMAND_ERRR);
+		} else {
+			RmNvs::set_int(RMNVS_NETMASK, val);
+			postResponse ("OK", RESPONSE_OK);
+		}
+	}
+
+	else
+	{
+		ESP_LOGD(TAG, "setCommands - unknown paramter name" );
+		postResponse ("Unknown parameter name in SET command",
+				RESPONSE_UNKNOWN );
 	}
 	return;
 }

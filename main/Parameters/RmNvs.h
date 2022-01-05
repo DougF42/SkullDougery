@@ -25,13 +25,16 @@ enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR, RMNVS_BOOL,  RMNVS_END }
 // NOTE: New settings must also be defined in RMNVS_init_values.
 #define RMNVS_KEY_WIFI_SSID "ssid"
 #define RMNVS_KEY_WIFI_PASS "pass"
-#define RMNVS_WIFI_CHANNEL  "channel"
+
 #define RMNVS_FORCE_AP_MODE  "APmode"
-#define RMNVS_USE_DHCP       "dhcp"
+
 #define RMNVS_IP            "addr"
 #define RMNVS_NETMASK       "mask"
-#define RMNVS_ROUTER_ADDR   "router"
 #define RMNVS_CMD_PORT      "cmdport"
+
+#define RMNVS_WIFI_CHANNEL  "channel"
+#define RMNVS_USE_DHCP       "dhcp"
+#define RMNVS_ROUTER_ADDR   "router"
 #define RMNVS_SRV_ADDR      "srvaddr"
 #define RMNVS_SRV_PORT      "srvport"
 #define RMNVS_DNS_ADDR      "dns"

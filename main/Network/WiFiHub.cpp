@@ -30,6 +30,7 @@
 #include <lwip/netdb.h>
 #include "../config.h"
 #include "WiFiHub.h"
+#include "../Parameters/RmNvs.h"
 static const char *TAG = "wifi softAP";
 
 /**
@@ -159,9 +160,11 @@ void WiFiHub::UDP_Server_wait_connection (void *parameters)
 
 }
 
+
 /**
- * This sends a response to the current source_addr, on 'sock' (the socket).
+ * This sends a response TO the current source_addr, on 'sock' (the UDP socket).
  * @param respTxt - the text of the message to send.
+ *
  * @param respcode - A short code of responseStatus_t type that
  *       describes the nature of the error.
  *
@@ -202,8 +205,7 @@ void WiFiHub::WiFi_HUB_init (void)
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
 	esp_netif_create_default_wifi_ap ();
 
-	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT()
-	;
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
 
 	ESP_ERROR_CHECK(
@@ -232,3 +234,48 @@ void WiFiHub::WiFi_HUB_init (void)
 	xTaskCreate (UDP_Server_wait_connection, "UDP Server", 8192, this, 1, &udpServerTask);
 }
 
+/**
+ * This connects to an external access point as a 'station'
+ *
+ */
+void WiFiHub::WiFi_AP_init (void) {
+	    ESP_ERROR_CHECK(esp_netif_init());
+
+	    ESP_ERROR_CHECK(esp_event_loop_create_default());
+	    esp_netif_create_default_wifi_sta();
+
+	    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+	    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+	                                                        ESP_EVENT_ANY_ID,
+	                                                        &wifi_event_handler,
+	                                                        NULL,
+	                                                        nullptr));
+
+	    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+	    													ESP_EVENT_ANY_ID,
+	                                                        &wifi_event_handler,
+	                                                        NULL,
+	                                                        nullptr));
+
+	    wifi_config_t wifi_config = {};
+	   // wifi_config.sta.ssid = RmNvs::get_str(RMNVS_KEY_WIFI_SSID);
+	    strcpy((char *)wifi_config.sta.ssid , RmNvs::get_str(RMNVS_KEY_WIFI_SSID ));
+	    //wifi_config.sta.password = RmNvs::get_str(RMNVS_KEY_WIFI_PASS);
+	    strcpy((char *)wifi_config.sta.password, RmNvs::get_str(RMNVS_KEY_WIFI_PASS));
+	            /* Setting a password implies station will connect to all security modes including WEP/WPA.
+	             * However these modes are deprecated and not advisable to be used. In case your Access point
+	             * doesn't support WPA2, these mode can be enabled by commenting below line */
+	    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+	    wifi_config.sta.pmf_cfg.capable = true;
+	    wifi_config.sta.pmf_cfg.required = false;
+
+	    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+	    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
+	    ESP_ERROR_CHECK(esp_wifi_start() );
+
+	    xTaskCreate (UDP_Server_wait_connection, "UDP Server", 8192, this, 1, &udpServerTask);
+
+	    ESP_LOGI(TAG, "wifi_init_sta finished.");
+}
