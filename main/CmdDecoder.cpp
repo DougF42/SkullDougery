@@ -210,8 +210,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 
 	} else if (ISCMD("jaw" ))
 	{
-
-		val = getIntArg (1, tokens, 0, 2000 );
+		val = getIntArg (1, tokens, 0, 1000 );
 		ESP_LOGD(TAG, "Dispatch - jaw=%d", val );
 		if (val == BAD_NUMBER)
 		{
@@ -228,7 +227,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
 		ESP_LOGD(TAG, "Dispatch - EYE" );
-		val = getIntArg (1, tokens, 0, 8192 );
+		val = getIntArg (1, tokens, 0, 1000 );
 		if (val == BAD_NUMBER)
 		{
 			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );

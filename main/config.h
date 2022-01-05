@@ -48,10 +48,6 @@ extern i2s_pin_config_t i2s_speaker_pins;
 // Where we send data to DAC
 #define ASSIGN_MUSIC_CORE     0
 
-// Where we do physical reads from FLASH
-#define ASSIGN_FILEREAD_CORE  1
-
-#define ASSIGN_MUSIC_TIMER
 #define SEQUENCER_PANIC_BACKLOG 5
 
 
