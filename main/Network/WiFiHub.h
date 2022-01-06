@@ -30,7 +30,7 @@ public:
 	WiFiHub (TASK_NAME devId);
 	virtual ~WiFiHub ();
 	void WiFi_HUB_init(void);
-	void WiFi_AP_init (void);
+	void WiFi_STA_init (void);
 
 private:
 	static void wifi_event_handler(void* arg, esp_event_base_t event_base,

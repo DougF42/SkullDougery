@@ -26,7 +26,6 @@ extern "C"
 void app_main ();
 }
 
-
 void app_main ()
 {
 	// Configure the 'RESET' button.
@@ -52,40 +51,46 @@ void app_main ()
 	ESP_ERROR_CHECK(ret );
 	if (1 == gpio_get_level (RESET_SWITCH ))
 	{
-		ESP_LOGD(TAG, "RESET switch not active");
+		ESP_LOGD(TAG, "RESET switch not active" );
 		RmNvs::init (0 );
 	}
 	else
 	{
-		ESP_LOGD(TAG, "RESET switch is activated");
+		ESP_LOGD(TAG, "RESET switch is activated" );
 		RmNvs::init (1 );
 	}
 
 	RmNvs::dumpTable ();
 
 #ifdef ENABLE_WIFI
+	WiFiHub wifi (TASK_NAME::UDP ); // Define wifi.
 
-	WiFiHub wifi(TASK_NAME::UDP);
-	// TODO: SELECT BETWEEN HUB and STAtion modes???
-	// Start Network (Access Point)
-	wifi.WiFi_HUB_init();
-	// wifiEiFi_STA_init(); ???
+	//if (RmNvs::is_set (RMNVS_FORCE_STA_MODE ))
+	if (false)  // for now, force HUB
+	{
+		ESP_LOGI(TAG, "Starting Station mode (connect to Access Point)");
+		wifi.WiFi_STA_init ();
+	}
+	else
+	{
+		// Start Network (Access Point)
+		ESP_LOGI(TAG, "Starting HUB");
+		wifi.WiFi_HUB_init ();
+	}
 #endif
-
 
 	TaskHandle_t switchboardHandle;
 
-	// Start Switchboard first
+// Start Switchboard first
 	ESP_LOGD(TAG, "About to start Switchboard!" );
 	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
 			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
 	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
-
-	SndPlayer player("Player");
-	//player.startPlayerTask();
-	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768,
-			&player, 2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
+	SndPlayer player ("Player" );
+//player.startPlayerTask();
+	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
+			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
 
 	while (1)
 	{

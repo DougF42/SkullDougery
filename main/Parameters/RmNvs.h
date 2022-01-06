@@ -25,14 +25,14 @@ enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR, RMNVS_BOOL,  RMNVS_END }
 // NOTE: New settings must also be defined in RMNVS_init_values.
 #define RMNVS_KEY_WIFI_SSID "ssid"
 #define RMNVS_KEY_WIFI_PASS "pass"
-
-#define RMNVS_FORCE_AP_MODE  "APmode"
+#define RMNVS_WIFI_CHANNEL  "channel"
+#define RMNVS_FORCE_STA_MODE  "STAmode"
 
 #define RMNVS_IP            "addr"
 #define RMNVS_NETMASK       "mask"
 #define RMNVS_CMD_PORT      "cmdport"
 
-#define RMNVS_WIFI_CHANNEL  "channel"
+
 #define RMNVS_USE_DHCP       "dhcp"
 #define RMNVS_ROUTER_ADDR   "router"
 #define RMNVS_SRV_ADDR      "srvaddr"
@@ -42,6 +42,7 @@ enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR, RMNVS_BOOL,  RMNVS_END }
 class RmNvs
 {
 public:
+
 	/*
 	 * The class methods and members are static,
 	 * so we wont need to implement it in each
@@ -67,6 +68,7 @@ public:
 
 	RMNVS_DTA_t get_info (int idx, bool **changeFlag, const char **keyName,
 			const void **dta);
+	static const char *get_info(int idx);
 	static void dumpTable();
 private:
 	// TODO: Later:   bool getIdx (int idx, CMDMSGPTR msg);

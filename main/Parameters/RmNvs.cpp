@@ -17,6 +17,7 @@
  *         have encapsulated them here.
  */
 #include <string.h>
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -41,6 +42,9 @@ static const char *TAG         = "+++NVS_ACCESS:";
 
 #define EQUALSTR(_a_, _b_) (0==strcasecmp(_a_,_b_))
 
+#define RMVS_END "END"
+
+
 struct curValues_t {
 	bool changed;           // If non-zero, this value was changes since last commmit.
 	char keyName[15];       // Name of this key. No more than 15 chars
@@ -53,10 +57,9 @@ struct curValues_t {
 	};
 } ;
 
-#define RMVS_END "END"
-
 static struct curValues_t curValues[15];
 static int NOOFCURVALUES;    // Filled in by init
+
 
 /**
  * This sets individual string defaults - it is ONLY used  by RMNVS_init_values.
@@ -128,7 +131,7 @@ void RmNvs::initSingleBool(int idx, const char *key, bool val) {
 	}
 	strcpy( curValues[idx].keyName, key);
 
-	curValues[idx].datatype = RMNVS_INT;
+	curValues[idx].datatype = RMNVS_BOOL;
 	if (val)
 		curValues[idx].curBool = true;
 	else
@@ -171,8 +174,8 @@ void RmNvs::init_values() {
 	int idx=0;
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
-	initSingleString(idx++, RMNVS_FORCE_AP_MODE, "yes");
-	initSingleBool   (idx++, RMNVS_USE_DHCP,       false);
+	initSingleBool(idx++,   RMNVS_FORCE_STA_MODE, false);
+	initSingleBool  (idx++, RMNVS_USE_DHCP,       false);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
 	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");
@@ -226,8 +229,8 @@ void RmNvs::commit ()
 
 				if (curValues[idx].changed)
 				{
-					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-							curValues[idx].keyName );
+//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
+//							curValues[idx].keyName );
 					err = nvs_set_i64 (handle, curValues[idx].keyName,
 							curValues[idx].curNumber );
 				}
@@ -247,8 +250,8 @@ void RmNvs::commit ()
 			case (RMNVS_BOOL):
 				if (curValues[idx].changed)
 				{
-					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-							curValues[idx].keyName );
+//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
+//							curValues[idx].keyName );
 					err = nvs_set_i8 (handle, curValues[idx].keyName,
 							curValues[idx].curBool );
 				}
@@ -273,28 +276,6 @@ void RmNvs::commit ()
 	return;
 }
 
-
-/**
- * This can be used to get a look at the current state
- * of the in-core settings.
- * The user is responsible for decoding dta, according to
- * the data type returned.
- *
- * @param idx - the index of the item to be returned
- * @param changeFlag - pointer to location to store the 'changed' flag - 0 normally, 1 if this was changed but not saved.
- * @param keyName    - We will store a pointer to the name of this key here. DO NOT MODIFY the keyname!
- * @param dta        - pointer to the union where the data is stored.
- * @return           - we return the data type of this item. RMNVS_END if the index is out of range.
- *                     It is up to the caller to interpret the data in a reasonable fashion,
- */
-RMNVS_DTA_t RmNvs::get_info (int idx, bool **changeFlag, const char **keyName,
-		const void **dta)
-{
-	*keyName = curValues[idx].keyName;
-	*dta = (void*) curValues[idx].curString;
-	*changeFlag = &(curValues[idx].changed);
-	return(curValues[idx].datatype);
-}
 
 /**
  * Clear NVS - this removes all configs from NVS, so on next
@@ -433,7 +414,7 @@ const char *RmNvs::get_str(const char *key) {
 		return(nullptr);
 	}
 
-	if (curValues[idx].datatype != RMNVS_INT)
+	if (curValues[idx].datatype != RMNVS_STRING)
 	{
 		ESP_LOGE(TAG, "KEY %s is not a string!", key);
 		return (nullptr);
@@ -493,11 +474,13 @@ int RmNvs::set_int(const char *key, int32_t value) {
 	int idx = findKey (key);
 	if (idx < 0)
 	{
+		ESP_LOGD(TAG, "set_int::Index not found for %s", key);
 		return (BAD_NUMBER);
 	}
 
 	if (curValues[idx].datatype != RMNVS_INT)
 	{
+		ESP_LOGD(TAG, "set_int:: datatype was %d, not %d", curValues[idx].datatype, RMNVS_INT);
 		return (BAD_NUMBER);
 	}
 	curValues[idx].changed = true;
@@ -534,7 +517,7 @@ int RmNvs::set_bool(const char *key, bool value) {
 		return (BAD_NUMBER);
 	}
 
-	if (curValues[idx].datatype != RMNVS_INT)
+	if (curValues[idx].datatype != RMNVS_BOOL)
 	{
 		return (BAD_NUMBER);
 	}
@@ -606,7 +589,7 @@ int RmNvs::set_addr (const char *key, in_addr_t value) {
 		return (BAD_NUMBER);
 	}
 
-	if (curValues[idx].datatype != RMNVS_INT)
+	if (curValues[idx].datatype != RMNVS_ADDR)
 	{
 		return (BAD_NUMBER);
 	}
@@ -620,6 +603,7 @@ int RmNvs::set_addr (const char *key, in_addr_t value) {
  * network-byte order value (see inet_aton) and stores it
  * @oaram key - the paramter to set
  * @param value - pointer to the string to set.
+ * @return BAD_NUMBER if any error
  */
 int RmNvs::set_addr_as_string (const char *key, const char *value) {
 	int idx = findKey (key);
@@ -630,7 +614,7 @@ int RmNvs::set_addr_as_string (const char *key, const char *value) {
 		return (BAD_NUMBER);
 	}
 
-	if (curValues[idx].datatype != RMNVS_INT)
+	if (curValues[idx].datatype != RMNVS_ADDR)
 	{
 		return (BAD_NUMBER);
 	}
@@ -641,34 +625,95 @@ int RmNvs::set_addr_as_string (const char *key, const char *value) {
 	return res;
 }
 
+
+/**
+ * This can be used to get a look at the current state
+ * of the in-core settings.
+ * The user is responsible for decoding dta, according to
+ * the data type returned.
+ *
+ * @param idx - the index of the item to be returned
+ * @param changeFlag - pointer to location to store the 'changed' flag - 0 normally, 1 if this was changed but not saved.
+ * @param keyName    - We will store a pointer to the name of this key here. DO NOT MODIFY the keyname!
+ * @param dta        - pointer to the union where the data is stored.
+ * @return           - we return the data type of this item. RMNVS_END if the index is out of range.
+ *                     It is up to the caller to interpret the data in a reasonable fashion,
+ */
+RMNVS_DTA_t RmNvs::get_info (int idx, bool **changeFlag, const char **keyName,
+		const void **dta)
+{
+	*keyName = curValues[idx].keyName;
+	*dta = (void*) curValues[idx].curString;
+	*changeFlag = &(curValues[idx].changed);
+	return(curValues[idx].datatype);
+}
+
+
+/**
+ * Get info about a specific entry as a string,
+ * selected  by index. (used for 'show' command)
+ */
+const char* RmNvs::get_info (int idx)
+{
+	static char hdr[64];
+	static char resp[128];
+	char adrPtr[32];
+
+	sprintf(hdr, "%-15s Change Flag:%d ", curValues[idx].keyName, curValues[idx].changed);
+	switch (curValues[idx].datatype)
+	{
+		case (RMNVS_STRING):
+			sprintf (resp, "%s Type: String:   %s",hdr, curValues[idx].curString );
+			break;
+
+		case (RMNVS_INT):
+			sprintf (resp, "%s Type: Integer:  %d",hdr, curValues[idx].curNumber );
+			break;
+
+		case (RMNVS_ADDR):
+
+			RmNvs::get_addr_as_string (curValues[idx].keyName, adrPtr );
+			sprintf (resp, "%s Type: Address:  %d (%s)", hdr, curValues[idx].curAddr,	adrPtr );
+			break;
+
+		case (RMNVS_BOOL):
+			sprintf (resp, "%s Type: Bool:     %d", hdr, curValues[idx].curBool );
+			break;
+
+		case (RMNVS_END):
+			bzero (resp, sizeof(resp) );
+			break;
+	}
+	return (resp);
+}
+
 /**
  * For debugging - dump the current table.
  */
 void RmNvs::dumpTable ()
 {
-	char buf[20];
-	char header[80];
+	char buf[80];
+	char hdr[80];
 	for (int idx = 0; idx < NOOFCURVALUES; idx++ )
 	{
-		sprintf (header, "---CONFIG: Index: %d  Key: %s   changeFlag %d ", idx,
+		sprintf (hdr, "IDX: %3d Parameter: %s   changeFlag %d ", idx,
 				curValues[idx].keyName, curValues[idx].changed );
+
 		switch (curValues[idx].datatype)
 		{
 			case (RMNVS_STRING):
-				ESP_LOGD(header, "Type: String: %s", curValues[idx].curString );
+				ESP_LOGD(buf, "%s Type: String: %s", hdr, curValues[idx].curString );
 				break;
 			case (RMNVS_INT):
-				ESP_LOGD(header, "Type: Integer: %d",
-						curValues[idx].curNumber );
+		ESP_LOGD(buf, "%s Type: Integer: %d",hdr, curValues[idx].curNumber );
 				break;
 			case (RMNVS_ADDR):
 				RmNvs::get_addr_as_string (curValues[idx].keyName, buf );
-				ESP_LOGD(header, "Type: Address:%d (%s)",
-						curValues[idx].curAddr, buf );
+			ESP_LOGD(buf, "%s Type: Address:%d (%s)",hdr, curValues[idx].curAddr, buf );
 				break;
 
 			case (RMNVS_BOOL):
-				ESP_LOGD(header, "Type: Bool:   %d", curValues[idx].curBool );
+		ESP_LOGD(buf, "%s Type: Bool:   %d",hdr, curValues[idx].curBool );
 				break;
 
 			case (RMNVS_END):

@@ -170,11 +170,11 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
  *
  */
 void CmdDecoder::help() {
-	postResponse("HELP:\n",RESPONSE_MORE);
+	postResponse("Help, show, commit \n",RESPONSE_MORE);
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
-	postResponse(" set  SSID, PASS, AP mode, ADDR, MASK, PORT", RESPONSE_OK);
+	postResponse(" set  key value (see show command output)", RESPONSE_OK);
 }
 /**
  * Process the tokenized command, and send an appropriate response.
@@ -192,8 +192,15 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 //	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
 
 	int val;
-	if (ISCMD("HELP")) {
+	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
+
+	} else if (ISCMD("SHOW")) {
+		showCurSettings();
+
+	} else if (ISCMD("COMMIT")) {
+		RmNvs::commit();
+		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("PAUSE")) {
 		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0);
@@ -256,6 +263,22 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	return;
 }
 
+/*
+ *
+ * Ouptut a a lst of the current settings (SHOW)
+ */
+
+void CmdDecoder::showCurSettings() {
+	const char *bufPtr=nullptr;
+
+	for (int i=0; i<99; i++) {
+		bufPtr=RmNvs::get_info(i);
+		if (*bufPtr=='\0') break;
+		postResponse (bufPtr, RESPONSE_MORE );
+	}
+	postResponse("END", RESPONSE_OK);
+}
+
 /**
  * This will handle any 'set *' command...
  * it is called from dispaychCommand, which has already identified
@@ -272,6 +295,8 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 #define ISARG(_x_, _a_) (0==strcasecmp(tokens[_x_], (_a_)))
 void CmdDecoder::setCommands (int tokCount, char *tokens[])
 {
+	int retVal=0;
+
 	if (tokCount < 3)
 	{
 		postResponse ("Missing paramter name or value in SET commnad",
@@ -280,44 +305,45 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 	}
 
 
-	if (ISARG(1, "SSID" ))
+	if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
 	{
-		RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
+		retVal=RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
 		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISARG(1, "PASS" ))
+
+	else if (ISARG(1, RMNVS_KEY_WIFI_PASS ))
 	{
-		RmNvs::set_str (RMNVS_KEY_WIFI_PASS, tokens[2] );
+		retVal=RmNvs::set_str (RMNVS_KEY_WIFI_PASS, tokens[2] );
 		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISARG(1, "AP" ))
+
+	else if (ISARG(1, RMNVS_FORCE_STA_MODE ))
 	{
 		char c = tolower (tokens[2][1] );
 		bool apstate = (c == '1') || (c = 'y') || (c == 't');
-		RmNvs::set_bool (RMNVS_FORCE_AP_MODE, apstate );
-		if (apstate)
-			postResponse ("OK - AP will be enabled on next boot", RESPONSE_OK );
-		else
-			postResponse ("OK - AP will be disabled on next boot",RESPONSE_OK );
+		retVal=RmNvs::set_bool (RMNVS_FORCE_STA_MODE, apstate );
 	}
-	else if (ISARG(1, "ADDR"))
+
+	else if (ISARG(1, RMNVS_IP))
 	{
-		RmNvs::set_addr_as_string(RMNVS_IP, tokens[2]);
+		retVal=RmNvs::set_addr_as_string(RMNVS_IP, tokens[2]);
 		postResponse ("OK", RESPONSE_OK);
 	}
-	else if (ISARG(1, "MASK"))
+
+	else if (ISARG(1,RMNVS_NETMASK))
 	{
-		RmNvs::set_addr_as_string(RMNVS_NETMASK, tokens[2]);
+		retVal=RmNvs::set_addr_as_string(RMNVS_NETMASK, tokens[2]);
 		postResponse ("OK", RESPONSE_OK);
 	}
-	else if (ISARG(1, "PORT"))
+
+	else if (ISARG(1, RMNVS_CMD_PORT))
 	{
 		uint32_t val= strtol(tokens[2], NULL, 0);
 		if ((val<=0)|| (val>=65535)) {
 			postResponse("Port number out of range - must be between 1 and 65535", RESPONSE_COMMAND_ERRR);
+			return;
 		} else {
-			RmNvs::set_int(RMNVS_NETMASK, val);
-			postResponse ("OK", RESPONSE_OK);
+			retVal=RmNvs::set_int(RMNVS_CMD_PORT, val);
 		}
 	}
 
@@ -326,6 +352,14 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		ESP_LOGD(TAG, "setCommands - unknown paramter name" );
 		postResponse ("Unknown parameter name in SET command",
 				RESPONSE_UNKNOWN );
+		return;
 	}
+
+	if (retVal==BAD_NUMBER) {
+		postResponse("Bad value or parameter in set command", RESPONSE_UNKNOWN);
+	} else {
+		postResponse("OK", RESPONSE_OK);
+	}
+
 	return;
 }

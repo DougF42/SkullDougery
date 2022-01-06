@@ -342,6 +342,15 @@ void SndPlayer::playMusic (void *output_ptr)
 
 		} // END of while PLAY THIS FILE
 
+		msg = Message::future_Message (TASK_NAME::EYES,
+											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+											0, 0 );
+		SwitchBoard::send (msg );
+		msg = Message::future_Message (TASK_NAME::JAW,
+											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+											0, 0 );
+		SwitchBoard::send(msg);
+
 		ESP_LOGI("main", "Finished playing file\n" );
 		fclose (fp );
 	}  // END of WAITING TO START READING THE FILE
@@ -379,7 +388,7 @@ void SndPlayer::testEyesAndJaws ()
 	EVENT_ACTION_SETVALUE, 0, 0 );
 	SwitchBoard::send (msg );
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 500, 0 );
+	EVENT_ACTION_SETVALUE, 0, 0 );
 	SwitchBoard::send (msg );  // Close JAW
 
 }

@@ -84,7 +84,7 @@ void WiFiHub::UDP_Server_wait_connection (void *parameters)
 		struct sockaddr_in dest_addr;
 		dest_addr.sin_addr.s_addr = htonl(INADDR_ANY );
 		dest_addr.sin_family = AF_INET;
-		dest_addr.sin_port = htons(SKULL_WIFI_PORT );
+		dest_addr.sin_port = htons( RmNvs::get_int(RMNVS_CMD_PORT) );
 		ip_protocol = IPPROTO_IP;
 		me->sock = socket (addr_family, SOCK_DGRAM, ip_protocol );
 		if (me->sock < 0)
@@ -100,7 +100,7 @@ void WiFiHub::UDP_Server_wait_connection (void *parameters)
 		{
 			ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno );
 		}
-		ESP_LOGI(TAG, "Socket bound, port %d", SKULL_WIFI_PORT );
+		ESP_LOGI(TAG, "Socket bound, port %d",  RmNvs::get_int(RMNVS_CMD_PORT) );
 
 		me->UDP_Server_handleCommmands( );
 		// Must have seen an error... shut down the socket and try again.
@@ -211,15 +211,19 @@ void WiFiHub::WiFi_HUB_init (void)
 	ESP_ERROR_CHECK(
 			esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL) );
 
+	ESP_LOGI(TAG, "wifi_init_softap started. SSID:%s password:%s channel:%d",
+			RmNvs::get_str(RMNVS_KEY_WIFI_SSID), RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
+			RmNvs::get_int(RMNVS_WIFI_CHANNEL));
+
 	wifi_config_t wifi_config;
-	strcpy ((char*) wifi_config.ap.ssid, SKULL_WIFI_SSID );
-	wifi_config.ap.ssid_len = strlen (SKULL_WIFI_SSID );
-	wifi_config.ap.channel = SKULL_WIFI_CHANNEL;
-	strcpy ((char*) wifi_config.ap.password, SKULL_WIFI_PASS );
+	strcpy ((char*) wifi_config.ap.ssid, RmNvs::get_str(RMNVS_KEY_WIFI_SSID) );
+	wifi_config.ap.ssid_len = strlen (RmNvs::get_str(RMNVS_KEY_WIFI_SSID));
+	wifi_config.ap.channel = RmNvs::get_int(RMNVS_WIFI_CHANNEL);
+	strcpy ((char*) wifi_config.ap.password, RmNvs::get_str(RMNVS_KEY_WIFI_PASS) );
 	wifi_config.ap.max_connection = 5;
 	wifi_config.ap.authmode = SKULL_WIFI_AUTHMODE;
 
-	if (strlen (SKULL_WIFI_PASS ) == 0)
+	if (strlen (RmNvs::get_str(RMNVS_KEY_WIFI_PASS) ) == 0)
 	{
 		wifi_config.ap.authmode = WIFI_AUTH_OPEN;
 	}
@@ -229,7 +233,8 @@ void WiFiHub::WiFi_HUB_init (void)
 	ESP_ERROR_CHECK(esp_wifi_start () );
 
 	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
-			SKULL_WIFI_SSID, SKULL_WIFI_PASS, SKULL_WIFI_CHANNEL );
+			RmNvs::get_str(RMNVS_KEY_WIFI_SSID), RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
+			RmNvs::get_int(RMNVS_WIFI_CHANNEL));
 
 	xTaskCreate (UDP_Server_wait_connection, "UDP Server", 8192, this, 1, &udpServerTask);
 }
@@ -238,7 +243,7 @@ void WiFiHub::WiFi_HUB_init (void)
  * This connects to an external access point as a 'station'
  *
  */
-void WiFiHub::WiFi_AP_init (void) {
+void WiFiHub::WiFi_STA_init (void) {
 	    ESP_ERROR_CHECK(esp_netif_init());
 
 	    ESP_ERROR_CHECK(esp_event_loop_create_default());

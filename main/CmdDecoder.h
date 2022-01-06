@@ -58,6 +58,7 @@ private:
 	int  cmdBufNextChar;
 	enum TASK_NAME senderTaskName;
 	int getIntArg(int tokNo, char *tokens[], int minVal, int maxVal);
+	void showCurSettings();
 	void setCommands (int tokCount, char *tokens[]);
 };
 
