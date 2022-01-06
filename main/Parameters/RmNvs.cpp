@@ -175,7 +175,7 @@ void RmNvs::init_values() {
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleBool(idx++,   RMNVS_FORCE_STA_MODE, false);
-	initSingleBool  (idx++, RMNVS_USE_DHCP,       false);
+	initSingleBool  (idx++, RMNVS_USE_DHCP,       true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
 	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");

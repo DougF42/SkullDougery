@@ -295,7 +295,7 @@ void CmdDecoder::showCurSettings() {
 #define ISARG(_x_, _a_) (0==strcasecmp(tokens[_x_], (_a_)))
 void CmdDecoder::setCommands (int tokCount, char *tokens[])
 {
-	int retVal=0;
+	int retVal = 0;
 
 	if (tokCount < 3)
 	{
@@ -304,16 +304,15 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		return;
 	}
 
-
 	if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
 	{
-		retVal=RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
+		retVal = RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
 		postResponse ("OK", RESPONSE_OK );
 	}
 
 	else if (ISARG(1, RMNVS_KEY_WIFI_PASS ))
 	{
-		retVal=RmNvs::set_str (RMNVS_KEY_WIFI_PASS, tokens[2] );
+		retVal = RmNvs::set_str (RMNVS_KEY_WIFI_PASS, tokens[2] );
 		postResponse ("OK", RESPONSE_OK );
 	}
 
@@ -321,30 +320,41 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 	{
 		char c = tolower (tokens[2][1] );
 		bool apstate = (c == '1') || (c = 'y') || (c == 't');
-		retVal=RmNvs::set_bool (RMNVS_FORCE_STA_MODE, apstate );
+		retVal = RmNvs::set_bool (RMNVS_FORCE_STA_MODE, apstate );
 	}
 
-	else if (ISARG(1, RMNVS_IP))
+	else if (ISARG(1, RMNVS_IP ))
 	{
-		retVal=RmNvs::set_addr_as_string(RMNVS_IP, tokens[2]);
-		postResponse ("OK", RESPONSE_OK);
+		retVal = RmNvs::set_addr_as_string (RMNVS_IP, tokens[2] );
+		postResponse ("OK", RESPONSE_OK );
 	}
 
-	else if (ISARG(1,RMNVS_NETMASK))
+	else if (ISARG(1, RMNVS_NETMASK ))
 	{
-		retVal=RmNvs::set_addr_as_string(RMNVS_NETMASK, tokens[2]);
-		postResponse ("OK", RESPONSE_OK);
+		retVal = RmNvs::set_addr_as_string (RMNVS_NETMASK, tokens[2] );
+		postResponse ("OK", RESPONSE_OK );
 	}
 
-	else if (ISARG(1, RMNVS_CMD_PORT))
+	else if (ISARG(1, RMNVS_CMD_PORT ))
 	{
-		uint32_t val= strtol(tokens[2], NULL, 0);
-		if ((val<=0)|| (val>=65535)) {
-			postResponse("Port number out of range - must be between 1 and 65535", RESPONSE_COMMAND_ERRR);
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		if ((val <= 0) || (val >= 65535))
+		{
+			postResponse ("Port number out of range - must be between 1 and 65535",
+					RESPONSE_COMMAND_ERRR );
 			return;
-		} else {
-			retVal=RmNvs::set_int(RMNVS_CMD_PORT, val);
 		}
+		else
+		{
+			retVal = RmNvs::set_int (RMNVS_CMD_PORT, val );
+		}
+	}
+
+	else if (ISARG(1, RMNVS_USE_DHCP ))
+	{
+		char c = tolower (tokens[2][1] );
+		bool apstate = (c == '1') || (c == 'y') || (c == 't');
+		retVal = RmNvs::set_bool (RMNVS_USE_DHCP, apstate );
 	}
 
 	else
@@ -355,10 +365,14 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		return;
 	}
 
-	if (retVal==BAD_NUMBER) {
-		postResponse("Bad value or parameter in set command", RESPONSE_UNKNOWN);
-	} else {
-		postResponse("OK", RESPONSE_OK);
+	if (retVal == BAD_NUMBER)
+	{
+		postResponse ("Bad value or parameter in set command",
+				RESPONSE_UNKNOWN );
+	}
+	else
+	{
+		postResponse ("OK", RESPONSE_OK );
 	}
 
 	return;
