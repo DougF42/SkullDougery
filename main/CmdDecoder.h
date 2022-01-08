@@ -32,7 +32,7 @@
 class CmdDecoder
 {
 public:
-	enum responseStatus_t {
+	enum responseStatus_enum {
 		RESPONSE_OK,             // The command was executed correctly
 		RESPONSE_COMMAND_ERRR,   // The command was decoded as valid, but execution failed.
 		RESPONSE_UNKNOWN,        // The command itself was not recognized
@@ -40,13 +40,13 @@ public:
 		RESPONSE_SYNTAX,          // There was a general syntax error.
 		RESPONSE_MORE            // There is more to follow this statement...
 		};
-
+typedef responseStatus_enum responseStatus_t;
 	CmdDecoder (TASK_NAME myId);
 	virtual ~CmdDecoder ();
 	void addEOLtoBuffer(void);
 	int addToBuffer(const char *dta, int dtaLen);
 	void flush();                // Flush messages and input queue.
-	virtual void postResponse(const char *respTxt, enum responseStatus_t respcode)=0;
+	virtual void postResponse(const char *respTxt,  responseStatus_t respcode)=0;
 
 protected:
 	void parseCommand();

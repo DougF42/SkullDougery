@@ -22,25 +22,24 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "lwip/sockets.h"
-#include "../CmdDecoder.h"
+#include "UDPServer.h"
+#include "../Sequencer/Message.h"
 
-class WiFiHub :public CmdDecoder
+class WiFiHub
 {
 public:
-	WiFiHub (TASK_NAME devId);
+	WiFiHub ();
 	virtual ~WiFiHub ();
-	void WiFi_HUB_init(void);
-	void WiFi_STA_init (void);
+	void WiFi_HUB_init();
+	void WiFi_STA_init ();
 
 private:
 	static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 	                                    int32_t event_id, void* event_data);
 	static void UDP_Server_wait_connection (void *Parameters);
 	void UDP_Server_handleCommmands();
-	void postResponse(const char *respTxt, enum responseStatus_t respcode);
-	struct sockaddr_storage source_addr; // Who sent us a message?
-	int sock; // The socket the server is using.
 	TaskHandle_t udpServerTask;
+	UDPServer *udpserver;
 
 };
 

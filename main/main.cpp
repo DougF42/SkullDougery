@@ -49,6 +49,8 @@ void app_main ()
 		ret = nvs_flash_init ();
 	}
 	ESP_ERROR_CHECK(ret );
+
+	// Check reset switch - if on, reset NVS parameters.
 	if (1 == gpio_get_level (RESET_SWITCH ))
 	{
 		ESP_LOGD(TAG, "RESET switch not active" );
@@ -63,10 +65,10 @@ void app_main ()
 	RmNvs::dumpTable ();
 
 #ifdef ENABLE_WIFI
-	WiFiHub wifi (TASK_NAME::UDP ); // Define wifi.
+	WiFiHub wifi; // Define wifi instance
 
-	//if (RmNvs::is_set (RMNVS_FORCE_STA_MODE ))
-	if (false)  // for now, force HUB
+	if (RmNvs::is_set (RMNVS_FORCE_STA_MODE ))
+	//if (false)  // for now, force HUB
 	{
 		ESP_LOGI(TAG, "Starting Station mode (connect to Access Point)");
 		wifi.WiFi_STA_init ();
