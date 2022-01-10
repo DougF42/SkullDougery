@@ -53,7 +53,7 @@ struct curValues_t {
 		char curString[32]; // Current value of this key (if string). Not longer than 32 chars
 		int32_t curNumber;  // Current value of this key (if integer).
 		in_addr_t curAddr;   // Current value of this key (if an address).
-		int       curBool;   // Current value of this key (if boolean)
+		int32_t  curBool;   // Current value of this key (if boolean)
 	};
 } ;
 
@@ -231,7 +231,7 @@ void RmNvs::commit ()
 				{
 //					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
 //							curValues[idx].keyName );
-					err = nvs_set_i64 (handle, curValues[idx].keyName,
+					err = nvs_set_i32 (handle, curValues[idx].keyName,
 							curValues[idx].curNumber );
 				}
 
@@ -250,9 +250,9 @@ void RmNvs::commit ()
 			case (RMNVS_BOOL):
 				if (curValues[idx].changed)
 				{
-//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-//							curValues[idx].keyName );
-					err = nvs_set_i8 (handle, curValues[idx].keyName,
+//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s, value ",
+//							curValues[idx].keyName, curValues[idx]. );
+					err = nvs_set_i32 (handle, curValues[idx].keyName,
 							curValues[idx].curBool );
 				}
 
@@ -307,14 +307,16 @@ void RmNvs::clear_nvs() {
 void RmNvs::load_from_nvs ()
 {
 	int idx;
-	int err = ESP_OK;
+	int err;
+	size_t len;
 
 	for (idx = 0; idx < NOOFCURVALUES; idx++ )
 	{
+		err=ESP_OK;
 		switch (curValues[idx].datatype)
 		{
 			case (RMNVS_STRING):
-				size_t len;
+				len=sizeof(curValues[idx].curString);
 				err = nvs_get_str (handle, curValues[idx].keyName,
 						curValues[idx].curString, &len );
 				break;
@@ -335,9 +337,14 @@ void RmNvs::load_from_nvs ()
 				break;
 
 			case (RMNVS_END):
+				// Do nothing...
 				break;
 		}
 		if (err == ESP_OK) curValues[idx].changed = false;
+		else {
+			ESP_LOGE(TAG, "In 'load_from_nvs: get failed for %s. ret code err %d(%s)",
+					curValues[idx].keyName, err, esp_err_to_name(err));
+		}
 	}
 	return;
 }
