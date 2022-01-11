@@ -37,7 +37,7 @@ static bool have_init_ok = false;
 static nvs_handle_t handle;
 #define MAX_VALUES 15
 static const char * NVS_PREFIX = "REMOTE_MOD";
-static const char *TAG         = "+++NVS_ACCESS:";
+static const char *TAG         = "----NVS_ACCESS:";
 
 
 #define EQUALSTR(_a_, _b_) (0==strcasecmp(_a_,_b_))
@@ -174,7 +174,7 @@ void RmNvs::init_values() {
 	int idx=0;
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
-	initSingleBool(idx++,   RMNVS_FORCE_STA_MODE, false);
+	initSingleBool  (idx++,   RMNVS_FORCE_STA_MODE, false);
 	initSingleBool  (idx++, RMNVS_USE_DHCP,       true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
@@ -198,84 +198,70 @@ void RmNvs::commit ()
 {
 	int idx;
 	int err;
-	ESP_LOGD(TAG, "IN RMNVS_commit" );
+	char buf[64];
+	ESP_LOGD(TAG, "IN RMNVS_commit. Number of curvalues is %d", NOOFCURVALUES );
 	for (idx = 0; idx < NOOFCURVALUES; idx++ )
 	{
 		err = ESP_OK;
-		switch (curValues[idx].datatype)
+		if (curValues[idx].changed)
 		{
-			case (RMNVS_STRING):
+			err = ESP_OK;
+			switch (curValues[idx].datatype)
+			{
+				case (RMNVS_STRING):
 
-//				ESP_LOGD(TAG,
-//						"RMNVS_commit: Processing STRING key %d name %s  value %s  changeFlag %d",
-//						idx, curValues[idx].keyName, curValues[idx].curString,
-//						curValues[idx].changed );
-
-				if (curValues[idx].changed)
-				{
-//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-//							curValues[idx].keyName );
+					ESP_LOGD(TAG,
+							"RMNVS_commit: Processing STRING key %d name %s  value %s",
+							idx, curValues[idx].keyName,
+							curValues[idx].curString );
 					err = nvs_set_str (handle, curValues[idx].keyName,
 							curValues[idx].curString );
-				}
-				break;
+					break;
 
-			case (RMNVS_INT):
+				case (RMNVS_INT):
+					ESP_LOGD(TAG,
+							"RMNVS_commit: Processing INTEGER key %d name %s  value %d",
+							idx, curValues[idx].keyName,
+							curValues[idx].curNumber );
 
-//				ESP_LOGD(TAG,
-//						"RMNVS_commit: Processing INTEGER key %d name %s  value %d  changeFlag %d",
-//						idx, curValues[idx].keyName, curValues[idx].curNumber,
-//						curValues[idx].changed );
-
-				if (curValues[idx].changed)
-				{
-//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-//							curValues[idx].keyName );
+					ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
+							curValues[idx].keyName );
 					err = nvs_set_i32 (handle, curValues[idx].keyName,
 							curValues[idx].curNumber );
-				}
+					break;
 
-				break;
-
-			case (RMNVS_ADDR):
-				if (curValues[idx].changed)
-				{
-//							ESP_LOGD(TAG, "RMNVS_commit: saving key %s",
-//									curValues[idx].keyName );
+				case (RMNVS_ADDR):
+					RmNvs::get_addr_as_string (curValues[idx].keyName, buf );
+					ESP_LOGD(TAG, "RMNVS_commit: saving ADDRESS key %s value %s",
+							curValues[idx].keyName,	buf);
 					err = nvs_set_u32 (handle, curValues[idx].keyName,
 							curValues[idx].curAddr );
-				}
-				break;
+					break;
 
-			case (RMNVS_BOOL):
-				if (curValues[idx].changed)
-				{
-//					ESP_LOGD(TAG, "RMNVS_commit: saving key %s, value ",
-//							curValues[idx].keyName, curValues[idx]. );
+				case (RMNVS_BOOL):
+					ESP_LOGD(TAG, "RMNVS_commit: saving key %s, value %d",
+							curValues[idx].keyName, curValues[idx].curBool );
 					err = nvs_set_i32 (handle, curValues[idx].keyName,
 							curValues[idx].curBool );
-				}
+					break;
 
-				break;
+				case (RMNVS_END):
+					break;
+			} // End of switch
 
-
-			case(RMNVS_END):
-				break;
-		}
-
-		if (err != ESP_OK)
-		{
-			// Something wicked this way comes!
-			ESP_LOGE(TAG,
-					"In RMNVS_commit - something wicked this way comes!  Key %d",
-					idx );
-			ESP_LOGE(TAG, "....KEY is %s", curValues[idx].keyName );
-		}
-		curValues[idx].changed = false;
-	}
+			if (err != ESP_OK)
+			{
+				// Something wicked this way comes!
+				ESP_LOGE(TAG,
+						"In RMNVS_commit - something wicked this way comes!  Key %d",
+						idx );
+				ESP_LOGE(TAG, "....KEY is %s", curValues[idx].keyName );
+			}
+			curValues[idx].changed = false;
+		} // End of if changed
+	}  // End of for loop
 	return;
 }
-
 
 /**
  * Clear NVS - this removes all configs from NVS, so on next
@@ -340,8 +326,13 @@ void RmNvs::load_from_nvs ()
 				// Do nothing...
 				break;
 		}
-		if (err == ESP_OK) curValues[idx].changed = false;
-		else {
+
+		if (err == ESP_OK)
+		{
+			curValues[idx].changed = false;
+		}
+		else
+		{
 			ESP_LOGE(TAG, "In 'load_from_nvs: get failed for %s. ret code err %d(%s)",
 					curValues[idx].keyName, err, esp_err_to_name(err));
 		}
@@ -364,26 +355,24 @@ void RmNvs::init(bool forceReset) {
 		ESP_LOGE(TAG, "ERROR: Called RmNvd_init more than once???");
 		return;
 	}
-	init_values(); // give our in-core array its default values.
-
 	have_init_ok = true;
 	ESP_LOGD(TAG, "In RmNvs init");
 
 	ESP_ERROR_CHECK(nvs_open(NVS_PREFIX, NVS_READWRITE, &handle));
-
+	init_values(); // give our in-core array its default values.
 	/*
 	 *  try to acces RMNVS_KEY_WIFI_SSID.
 	 * If not present, set NO_CONFIG flag.
 	 */
 	if (forceReset  ||  ESP_OK != nvs_get_str(handle, RMVS_END, flag, &flen) ) {
 		// Initialize using defaults if we dont have the RMNVS_INITIALIZED flag.
-		ESP_LOGD(TAG, " Reset NVS ");
+		ESP_LOGD(TAG, " Reset NVS - do not load existing NVS content");
 	}  else {
 		// Get any existing settings, then commit defaults for any that aren't in NVS.
-		ESP_LOGD(TAG, " Use existing NVS content");
+		ESP_LOGD(TAG, " loading existing NVS content");
 		load_from_nvs();
 	}
-	commit();   // Anything that wasnt read from NVS gets written now.
+	commit();   // Anything that wasn't read from NVS gets written now.
 
 	ESP_LOGD(TAG, "Leave RmNvs init.");
 
@@ -665,7 +654,7 @@ const char* RmNvs::get_info (int idx)
 	static char hdr[64];
 	static char resp[128];
 	char adrPtr[32];
-
+	bzero(resp, sizeof(resp));
 	sprintf(hdr, "%-15s Change Flag:%d ", curValues[idx].keyName, curValues[idx].changed);
 	switch (curValues[idx].datatype)
 	{
@@ -678,7 +667,6 @@ const char* RmNvs::get_info (int idx)
 			break;
 
 		case (RMNVS_ADDR):
-
 			RmNvs::get_addr_as_string (curValues[idx].keyName, adrPtr );
 			sprintf (resp, "%s Type: Address:  %d (%s)", hdr, curValues[idx].curAddr,	adrPtr );
 			break;
