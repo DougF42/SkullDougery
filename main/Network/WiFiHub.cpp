@@ -35,7 +35,7 @@
 #include "WiFiHub.h"
 #include "../Parameters/RmNvs.h"
 #include "UDPServer.h"
-static const char *TAG = "wifi softAP";
+static const char *TAG = "+++wifi softAP";
 
 
 //TaskHandle_t WiFiHub::udpServerTask;
@@ -52,6 +52,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 	WiFiHub *me=(WiFiHub *)arg;
 	wifi_event_ap_staconnected_t *event_connect;
 	wifi_event_ap_stadisconnected_t *event_disc;
+	ip_event_ap_staipassigned_t  *got_ip;
 	wifi_event_sta_connected_t *event_connect_sta;
 	std::string fmat = "***station %s %02x:%02x:%02x:%02x:%02x:%02x AID=%d ****";
 	fmat.append ("%02x:%02x:%02x:%02x:%02x:%02x" );
@@ -80,11 +81,12 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 
 			case (WIFI_EVENT_STA_START):
 				// WIFI has started - now connect to the network hub.
+				ESP_LOGI(TAG, "STATION START event.");
 				esp_wifi_connect ();
 				break;
 
 			case (WIFI_EVENT_STA_CONNECTED):
-				// TODO: WiFi has connected to the HUB, but does not yet have DHCP address.
+				// WiFi has connected to the HUB, but does not yet have DHCP address.
 				event_connect_sta = (wifi_event_sta_connected_t*) event_data;
 				char ssid[9];
 				memcpy (ssid, event_data, event_connect_sta->ssid_len );
@@ -92,14 +94,15 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				ESP_LOGI(TAG, "CONNECTED to HUB: ssid=%s,  channel=%d", ssid,
 						event_connect_sta->channel );
 
-				// Time to force addreess??
+				// TODO: Time to force addreess??
 				break;
 
 			case (WIFI_EVENT_STA_DISCONNECTED):
 				// Something happend - we disconnected from hub, or failed to connect
-				ESP_LOGI(TAG, "DISCONNECTED FROM HUB (event)" );
+				ESP_LOGI(TAG, "DISCONNECTED FROM HUB (event). Retry connection." );
+				esp_wifi_connect();
 				// For now, shut down the udp server.
-				vTaskDelete(me->udpServerTask);
+				// vTaskDelete(me->udpServerTask);
 
 				// Probably need to keep trying
 				break;
@@ -112,10 +115,19 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 	{
 		switch (event_id)
 		{
+			case(IP_EVENT_AP_STAIPASSIGNED):
+				event_disc = (wifi_event_ap_stadisconnected_t*) event_data;
+				ESP_LOGI(TAG, "Assigned address to a client!");
+				//  esp_ip4_addr_t ip;      /**< Interface IPV4 address */
+			    //esp_ip4_addr_t netmask; /**< Interface IPV4 netmask */
+			    //esp_ip4_addr_t gw;      /**< Interface IPV4 gateway address */
+				got_ip= (ip_event_ap_staipassigned_t *) event_data;
+				ESP_LOGI(TAG, "Assigned address %s to a client!",inet_ntoa(got_ip->ip));
+			break;
 
 			case (IP_EVENT_STA_GOT_IP):
 				// TODO: start the server
-				ESP_LOGI(TAG, "STATION MODE: Got IP address: " );
+				ESP_LOGI(TAG, "Got IP address: start UDP server" );
 				if (me->udpServerTask==nullptr) {
 					me->udpserver=new UDPServer(TASK_NAME::UDP);
 					xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
@@ -125,6 +137,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 
 			case (IP_EVENT_STA_LOST_IP):
 				// TODO:
+				ESP_LOGI(TAG, "LOST IP! terminate UDP server");
 				vTaskDelete(me->udpserver);
 				delete me->udpserver;
 				break;
@@ -137,7 +150,6 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
  * Shut it down... ?
  */
 WiFiHub::~WiFiHub() {
-
 }
 
 
@@ -145,7 +157,8 @@ WiFiHub::~WiFiHub() {
  * Initializer - do nothing.
  */
  WiFiHub::WiFiHub() {
-
+	 udpserver=nullptr;
+	 udpServerTask=0;
 }
 
 
@@ -155,13 +168,17 @@ WiFiHub::~WiFiHub() {
 void WiFiHub::WiFi_HUB_init ()
 {
 
+	ESP_LOGI(TAG, "wifi_init_softap started. SSID:%s password:%s channel:%d",
+				RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
+				RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
+				RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
+
 
 	ESP_ERROR_CHECK(esp_netif_init () );
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
 	esp_netif_create_default_wifi_ap ();
 
-	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT()
-	;
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
 
 	ESP_ERROR_CHECK(
@@ -170,10 +187,6 @@ void WiFiHub::WiFi_HUB_init ()
 	ESP_ERROR_CHECK(
 			esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, this, NULL ));
 
-	ESP_LOGI(TAG, "wifi_init_softap started. SSID:%s password:%s channel:%d",
-			RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
-			RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
-			RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
 
 	wifi_config_t wifi_config;
 	strcpy ((char*) wifi_config.ap.ssid,
@@ -194,7 +207,7 @@ void WiFiHub::WiFi_HUB_init ()
 	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config) );
 	ESP_ERROR_CHECK(esp_wifi_start () );
 
-	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
+	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s  password:%s  channel:%d",
 			RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
 			RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
 			RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
@@ -211,13 +224,13 @@ void WiFiHub::WiFi_HUB_init ()
 void WiFiHub::WiFi_STA_init ()
 {
 	UDPServer udpsever (TASK_NAME::UDP );
+
 	ESP_ERROR_CHECK(esp_netif_init () );
 
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
 	esp_netif_create_default_wifi_sta ();
 
-	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT()
-	;
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
 
 	ESP_ERROR_CHECK(
@@ -226,12 +239,11 @@ void WiFiHub::WiFi_STA_init ()
 	ESP_ERROR_CHECK(
 			esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, nullptr) );
 
-	wifi_config_t wifi_config =
-	{ };
-	// wifi_config.sta.ssid = RmNvs::get_str(RMNVS_KEY_WIFI_SSID);
+	wifi_config_t wifi_config = { };
+
 	strcpy ((char*) wifi_config.sta.ssid,
 			RmNvs::get_str (RMNVS_KEY_WIFI_SSID ) );
-	//wifi_config.sta.password = RmNvs::get_str(RMNVS_KEY_WIFI_PASS);
+
 	strcpy ((char*) wifi_config.sta.password,
 			RmNvs::get_str (RMNVS_KEY_WIFI_PASS ) );
 	/* Setting a password implies station will connect to all security modes including WEP/WPA.

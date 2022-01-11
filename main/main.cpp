@@ -53,12 +53,12 @@ void app_main ()
 	// Check reset switch - if on, reset NVS parameters.
 	if (1 == gpio_get_level (RESET_SWITCH ))
 	{
-		ESP_LOGD(TAG, "RESET switch not active" );
+		ESP_LOGD(TAG, "*********RESET switch not active********" );
 		RmNvs::init (0 );
 	}
 	else
 	{
-		ESP_LOGD(TAG, "RESET switch is activated" );
+		ESP_LOGD(TAG, "********RESET switch is activated********" );
 		RmNvs::init (1 );
 	}
 
@@ -68,19 +68,21 @@ void app_main ()
 	WiFiHub wifi; // Define wifi instance
 
 	if (RmNvs::is_set (RMNVS_FORCE_STA_MODE ))
-	//if (false)  // for now, force HUB
 	{
-		ESP_LOGI(TAG, "Starting Station mode (connect to Access Point)");
+		ESP_LOGI(TAG, "****Starting Station mode (connect to Access Point)");
 		wifi.WiFi_STA_init ();
 	}
 	else
 	{
 		// Start Network (Access Point)
-		ESP_LOGI(TAG, "Starting HUB");
+		ESP_LOGI(TAG, "****Starting HUB");
 		wifi.WiFi_HUB_init ();
 	}
 #endif
-
+while(1) {
+	ESP_LOGD(TAG, "....SLEEP....");
+	vTaskDelay(10000); // Sleep forever
+}
 	TaskHandle_t switchboardHandle;
 
 // Start Switchboard first
