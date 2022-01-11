@@ -79,10 +79,10 @@ void app_main ()
 		wifi.WiFi_HUB_init ();
 	}
 #endif
-while(1) {
-	ESP_LOGD(TAG, "....SLEEP....");
-	vTaskDelay(10000); // Sleep forever
-}
+//while(1) {
+//	ESP_LOGD(TAG, "....SLEEP....");
+//	vTaskDelay(10000); // Sleep forever
+//}
 	TaskHandle_t switchboardHandle;
 
 // Start Switchboard first
@@ -92,7 +92,7 @@ while(1) {
 	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
 	SndPlayer player ("Player" );
-//player.startPlayerTask();
+
 	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
 			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
 
