@@ -2,7 +2,7 @@
 //
 //  FILE   : StepperMotorController.h
 //
-//  NOTES  : Stepper Motor Controller, Version 2022-1-8
+//  NOTES  : Stepper Motor Controller, Version 2022-1-12
 //           This firmware is used to operate a single stepper driver/motor from an Arduino board.
 //           (see the .cpp file for details)
 //
@@ -214,10 +214,12 @@ enum MotorStates
 
 enum RunReturn_t
 {
-	RUN_OK,         // (sitting idle or still running)
-	RUN_COMPLETE,   //  Rotate Complete
-	RUN_RANGE_ERROR //  Range Error (tried to pass a limit)
+	RUN_OK,          // Sitting idle or still running
+	RUN_COMPLETE,    // Rotate Complete
+	RUN_RANGE_ERROR  // Range Error (tried to pass a limit)
 };
+
+
 //=========================================================
 //  class StepperMotorController
 //=========================================================
@@ -258,15 +260,14 @@ class StepperMotorController
     unsigned long  NextStepMicros;     // Target micros for next step
     RunReturn_t    RunReturn = RUN_OK; // Return from Run method
 
-
     void startRotation();
-    void commonInit();
 
   public:
-    StepperMotorController(int enablePin=2, int directionPin=3, int stepPin=4, int ledPin=13); // DIGITAL driver
-    StepperMotorController(int pin1=2, int pin2=3, int pin3=4,  int pin4=5,    int ledPin=13);    // NON-Digital drivert
+    StepperMotorController(DriverTypes driverType, int pin1=2, int pin2=3, int pin3=4, int pin4=5, int ledPin=13);
+    // For Digital Drivers pin1, pin2, pin3 are for Enable, Direction and Step pins respectively
+    // For Non-Digital Drivers pin1, pin2, pin3, pin4 are for each coil of the motor
 
-    RunReturn_t      Run();  // Keeps the motor running (must be called from your loop() function with no delay)
+    RunReturn_t    Run();  // Keeps the motor running (must be called from your loop() function with no delay)
 
     void           Enable              ();                                      // Enables the motor driver (energizes the motor)
     void           Disable             ();                                      // Disables the motor driver (releases the motor)
@@ -293,7 +294,7 @@ class StepperMotorController
     const char *   GetVersion          ();                                      // Returns this firmware's current version
     void           BlinkLED            ();                                      // Blink the onboard LED to indicate identification
 
- //   String         ExecuteCommand      (String command);                        // Execute a stepper motor function by String command (see notes above)
+    char *         ExecuteCommand      (char *command);                         // Execute a stepper motor function by string command (see notes above)
 };
 
 #endif

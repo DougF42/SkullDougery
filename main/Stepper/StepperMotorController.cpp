@@ -2,7 +2,7 @@
 //
 //  FILE   : StepperMotorController.cpp
 //
-//  NOTES  : Stepper Motor Controller, Version 2022-1-8
+//  NOTES  : Stepper Motor Controller, Version 2022-1-12
 //           This firmware is used to operate a single stepper driver/motor from an Arduino board.
 //           (see the header file for details)
 //
@@ -13,100 +13,70 @@
 //==================================================================================================================
 
 #include "Arduino.h"
+#include "string.h"
 #include "StepperMotorController.h"
+
+//--- Globals ----------------------------------------------
+
 const char * StepperMotorController::Version =
-    		"Stepper Motor Controller 2022-1-8\nCopyright 2013-2022, D+S Tech Labs, Inc.\nAll Rights Reserved.";
+  "Stepper Motor Controller 2022-1-12\nCopyright 2013-2022, D+S Tech Labs, Inc.\nAll Rights Reserved.";
 
 
 //==========================================================
-//  Constructor - NON - DIGITAL driver
+//  Constructor
 //==========================================================
-StepperMotorController::StepperMotorController(int pin1, int pin2, int pin3, int pin4, int ledPin) {
-	  // Save the specified pins
-	  motor_pin_1    = pin1;
-	  motor_pin_2    = pin2;
-	  motor_pin_3    = pin3;
-	  motor_pin_4    = pin4;
-	  LEDPin         = ledPin;
-
-	  // Set all pin modes as DIGITAL OUTPUT's
-
-	  pinMode(motor_pin_1 , OUTPUT);
-	  pinMode(motor_pin_2 , OUTPUT);
-	  pinMode(motor_pin_3 , OUTPUT);
-	  pinMode(motor_pin_4 , OUTPUT);
-
-	  // Initialize pins
-	  digitalWrite(motor_pin_1 , LOW );  // Coil off
-	  digitalWrite(motor_pin_2 , LOW );  // Coil off
-	  digitalWrite(motor_pin_3 , LOW );  // Coil off
-	  digitalWrite(motor_pin_4 , LOW );  // Coil off
-
-	  commonInit();
-}
-
-
-//==========================================================
-//  Constructor - DIGITAL driver
-//==========================================================
-StepperMotorController::StepperMotorController (int enablePin, int directionPin, int stepPin, int ledPin)
+StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1, int pin2, int pin3, int pin4, int ledPin)
 {
-  // Save the specified pins
-  EnablePin    = enablePin;
-  DirectionPin = directionPin;
-  StepPin      = stepPin;
+  DriverType = driverType;
+  
+  // Save the specified pins for the both driver types
+  EnablePin    = pin1;
+  DirectionPin = pin2;
+  StepPin      = pin3;
+  motor_pin_1  = pin1;
+  motor_pin_2  = pin2;
+  motor_pin_3  = pin3;
+  motor_pin_4  = pin4;
   LEDPin       = ledPin;
 
   // Set all pin modes as DIGITAL OUTPUT's
-  pinMode(EnablePin   , OUTPUT);
-  pinMode(DirectionPin, OUTPUT);
-  pinMode(StepPin     , OUTPUT);
-  pinMode(LEDPin      , OUTPUT);
+  pinMode(pin1  , OUTPUT);
+  pinMode(pin2  , OUTPUT);
+  pinMode(pin3  , OUTPUT);
+  pinMode(pin4  , OUTPUT);
+  pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
-  digitalWrite(EnablePin   , HIGH);  // Start with driver disabled
-  digitalWrite(DirectionPin, LOW );
-  digitalWrite(StepPin     , LOW );  // No pulse
-  digitalWrite(LEDPin      , LOW );  // Turn off LED
+  digitalWrite(pin1, LOW);
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin3, LOW);
+  digitalWrite(pin4, LOW);
 
-  commonInit();
-}
+  // If DIGITAL, start with motor disabled
+  if (DriverType == DIGITAL)
+    digitalWrite(EnablePin, HIGH);
 
-//=========================================================
-//  commonInit:
-//  This initializes variables that are the same for both
-//  Digital and Non-Digital instances
-//=========================================================
-void StepperMotorController::commonInit()
-{
-	 // Set motor state and step position/timing
-	  Homed             = false;
-	  MotorState        = DISABLED;
-	  StepIncrement     = 1L;
-	  AbsolutePosition  = 0L;
-	  DeltaPosition     = 0L;
-	  TargetPosition    = 0L;
-	  LowerLimit        = -2000000000L;
-	  UpperLimit        =  2000000000L;
-	  RampSteps         = 0L;
-	  RampDownStep      = 0L;
-	  Velocity          = 0L;
-	  VelocityIncrement = RampScale * 5L;  // Default ramp scale of 5
-	  NextPosition      = 0L;
-	  NextStepMicros    = -1L;
-	  RunReturn         = RUN_OK;
+	// Set motor state and step position/timing
+	Homed             = false;
+  MotorState        = DISABLED;
+  StepIncrement     = 1L;
+  AbsolutePosition  = 0L;
+  DeltaPosition     = 0L;
+  TargetPosition    = 0L;
+  LowerLimit        = -2000000000L;
+  UpperLimit        =  2000000000L;
+  RampSteps         = 0L;
+  RampDownStep      = 0L;
+  Velocity          = 0L;
+  VelocityIncrement = RampScale * 5L;  // Default ramp scale of 5
+  NextPosition      = 0L;
+  NextStepMicros    = -1L;
+  RunReturn         = RUN_OK;
 
-	  MaxVelocity       = 0;
-	  TargetOrSteps     = 0;
-	  TotalSteps        = 0;
-	  StepCount         = 0;
-
-	//  // Flash LED to indicate board is ready
-	//  for (int i=0; i<5; i++)
-	//  {
-	//    digitalWrite(LEDPin, HIGH); delay(100);
-	//    digitalWrite(LEDPin, LOW ); delay(400);
-	//  }
+  MaxVelocity       = 0;
+  TargetOrSteps     = 0;
+  TotalSteps        = 0;
+  StepCount         = 0;
 }
 
 
@@ -118,12 +88,12 @@ void StepperMotorController::commonInit()
 //  Return values:
 //    "RCp" - Rotate Complete where p is the Absolute Position
 //    "RE"  - Range Error (tried to pass a limit)
-//    ""    - Empty String (sitting idle or still running)
+//    ""    - Empty string (sitting idle or still running)
 //=========================================================
 RunReturn_t StepperMotorController::Run()
 {
-   RunReturn = RUN_OK;
-  
+  RunReturn = RUN_OK;
+
   // If motor is RUNNING and it's time for it to step, then issue step pulse
   if (Homed && MotorState == RUNNING)
   {
@@ -373,7 +343,7 @@ void StepperMotorController::RotateRelative (long numSteps, int stepsPerSecond)
     TargetPosition = AbsolutePosition + numSteps;
     MaxVelocity    = stepsPerSecond;
     TotalSteps     = abs(numSteps);
-  
+
     startRotation();
   }
 }
@@ -484,7 +454,7 @@ unsigned long StepperMotorController::GetRemainingTime()
   // Return remaining time (in milliseconds) for motion to complete
   if (MotorState != RUNNING)
     return 0L;
-    
+
   unsigned long numSteps = abs(AbsolutePosition - TargetPosition);
   unsigned long remTime  = 1000L * numSteps / MaxVelocity + 500L;  // +500 for ramping
 
@@ -512,22 +482,24 @@ void StepperMotorController::BlinkLED()
   }
 }
 
-#ifdef  DONOTUSE
+
 //========================================================
 //  ExecuteCommand
 //========================================================
 
-String StepperMotorController::ExecuteCommand(String packet)
+char * StepperMotorController::ExecuteCommand(char *packet)
 {
-  String  command;
-  int     ramp, velocity;
-  long    limit, targetOrNumSteps;
-  
+  char  command[3];
+  int   ramp, velocity;
+  long  limit, targetOrNumSteps;
+  char  returnString[40];
+
   // Command string must be at least 2 chars
-  if (packet.length() < 2) return "";
-  
+  if (strlen(packet) < 2) return "";
+
   // Set 2-Char Command and parse all commands
-  command = packet.substring(0, 2);
+  strncpy (command, packet, 2);
+  command[2] = 0;
 
   //======================================================
   //  Emergency Stop (ESTOP)
@@ -536,47 +508,47 @@ String StepperMotorController::ExecuteCommand(String packet)
   //  driver and re-Set the motor's Home position for
   //  motion to resume.
   //======================================================
-  if (command == "ES")
+  if (strcmp(command, "ES") == 0)
     EStop();
-      
+
   //======================================================
   //  Enable / Disable
   //======================================================
-  else if (command == "EN")
+  else if (strcmp(command, "EN") == 0)
     Enable();
-  else if (command == "DI")
+  else if (strcmp(command, "DI") == 0)
     Disable();
 
   //======================================================
   //  Set HOME Position, LOWER and UPPER Limits
   //======================================================
-  else if (command == "SH")
+  else if (strcmp(command, "SH") == 0)
     SetHomePosition();
-  else if (command == "SL" || command == "SU")
+  else if (strcmp(command, "SL") == 0 || strcmp(command, "SU") == 0)
   {
     // Check for value
-    if (packet.length() < 3)
+    if (strlen(packet) < 3)
       return "Missing limit value";
 
-    limit = (long)((packet.substring(2)).toInt());
+    limit = strtol(packet+2, NULL, 10);
 
-    if (command == "SL")
+    if (strcmp(command, "SL") == 0)
       SetLowerLimit(limit);
     else
       SetUpperLimit(limit);
   }
-  
+
   //======================================================
   //  Set Velocity Ramp Factor
   //======================================================
-  else if (command == "SR")
+  else if (strcmp(command, "SR") == 0)
   {
     // Check for value
-    if (packet.length() != 3)
+    if (strlen(packet) != 3)
       return "Missing ramp value 0-9";
-     
-    ramp = (packet.substring(2)).toInt();
-    
+
+    ramp = atoi(packet+2);
+
     // Check specified ramp value
     if (ramp >= 0 && ramp <= 9)
       SetRamp(ramp);
@@ -585,49 +557,50 @@ String StepperMotorController::ExecuteCommand(String packet)
   //======================================================
   //  Rotate Commands
   //======================================================
-  else if (command == "RH")
+  else if (strcmp(command, "RH") == 0)
     RotateToHome();
-  else if (command == "RL")
+  else if (strcmp(command, "RL") == 0)
     RotateToLowerLimit();
-  else if (command == "RU")
+  else if (strcmp(command, "RU") == 0)
     RotateToUpperLimit();
-  else if (command == "RA" || command == "RR")
+  else if (strcmp(command, "RA") == 0 || strcmp(command, "RR") == 0)
   {
     // Rotate command must be at least 7 chars
-    if (packet.length() < 7)
+    if (strlen(packet) < 7)
       return "Bad command";
-    
-    // Parse max velocity and target/numSteps
-    velocity         = (long)((packet.substring(2, 6)).toInt());  // Velocity is 4-chars 0001..9999
-    targetOrNumSteps = (long)((packet.substring(6)).toInt());     // Target position or number of steps is remainder of packet
 
-    if (command == "RA")
+    // Parse max velocity and target/numSteps
+    char velString[5];  // Velocity is 4-chars 0001..9999
+    strncpy (velString, packet+2, 4);
+    velString[4] = 0;
+    velocity = strtol(velString, NULL, 10);
+    targetOrNumSteps = strtol(packet+6, NULL, 10);  // Target position or number of steps is remainder of packet
+
+    if (strcmp(command, "RA") == 0)
       RotateAbsolute(targetOrNumSteps, velocity);
     else
       RotateRelative(targetOrNumSteps, velocity);
   }
-  
+
   //======================================================
   //  Query Commands and Blink
   //======================================================
-  else if (command == "GA")
-    return String(GetAbsolutePosition());
-  else if (command == "GR")
-    return String(GetRelativePosition());
-  else if (command == "GL")
-    return String(GetLowerLimit());
-  else if (command == "GU")
-    return String(GetUpperLimit());
-  else if (command == "GT")
-    return String(GetRemainingTime());
-  else if (command == "GV")
-    return GetVersion();
-  else if (command == "BL")
+  else if (strcmp(command, "GA") == 0)
+    return itoa(GetAbsolutePosition(), returnString, 10);
+  else if (strcmp(command, "GR") == 0)
+    return itoa(GetRelativePosition(), returnString, 10);
+  else if (strcmp(command, "GL") == 0)
+    return itoa(GetLowerLimit(), returnString, 10);
+  else if (strcmp(command, "GU") == 0)
+    return itoa(GetUpperLimit(), returnString, 10);
+  else if (strcmp(command, "GT") == 0)
+    return itoa(GetRemainingTime(), returnString, 10);
+  else if (strcmp(command, "GV") == 0)
+    return (char *)GetVersion();
+  else if (strcmp(command, "BL") == 0)
     BlinkLED();
   else
     return "Unknown command";
 
   return "";
 }
-
-#endif
