@@ -45,15 +45,15 @@
 //                                 --------------------------------------
 //
 //                                       .------------------------.        <-- full velocity
-//  A ramp value of 5                   /                          \
-//  specifies moderate ramping:        /                            \
-//  This is the default at startup    /                              \
+//  A ramp value of 5                   /                          \.
+//  specifies moderate ramping:        /                            \.
+//  This is the default at startup    /                              \.
 //                                 --------------------------------------
 //
 //                                           .----------------.            <-- full velocity
-//  A ramp value of 9                      /                    \
-//  specifies gradual ramping:           /                        \
-//                                     /                            \
+//  A ramp value of 9                      /                    \.
+//  specifies gradual ramping:           /                        \.
+//                                     /                            \.
 //                                 --------------------------------------
 //
 //  Use low values (2, 3, ..) for fast accelerations with light loads and high values (.., 8, 9) for slow accelerations
@@ -61,8 +61,8 @@
 //
 //                                            ----------    <-- full velocity
 //  If there is not enough time to achieve
-//  full velocity, then rotation velocity         /\
-//  follows a "stunted" triangle path:           /  \
+//  full velocity, then rotation velocity         /\.
+//  follows a "stunted" triangle path:           /  \.
 //                                            ----------
 //
 //  Once a ramp value is set, all rotate commands will use that ramp value.
@@ -189,6 +189,7 @@
 //  where s is a positive or negative long integer (depending on clockwise or counter-clockwise position)
 //  and represents a number of steps which may be 1 to 10 digits plus a possible sign.
 //
+//
 //==================================================================================================================
 
 #ifndef SMC_H
@@ -211,6 +212,12 @@ enum MotorStates
   STOPPED    // Motor is in an E-STOP condition (Emergency Stop)
 };
 
+enum RunReturn_t
+{
+	RUN_OK,         // (sitting idle or still running)
+	RUN_COMPLETE,   //  Rotate Complete
+	RUN_RANGE_ERROR //  Range Error (tried to pass a limit)
+};
 //=========================================================
 //  class StepperMotorController
 //=========================================================
@@ -218,20 +225,20 @@ enum MotorStates
 class StepperMotorController
 {
   private:
-    const String Version = "Stepper Motor Controller 2022-1-8\nCopyright 2013-2022, D+S Tech Labs, Inc.\nAll Rights Reserved.";
+    static const char * Version;
 
     DriverTypes  DriverType = DIGITAL;   // Default is a "digital" stepper driver (enable, direction, pulse)
     MotorStates  MotorState = DISABLED;  // Default is disabled (unlocked)
 
     // Logic Pins For Digital Stepper Drivers:
     int  EnablePin, DirectionPin, StepPin;
-    int  LEDPin   = 13;
+    int  LEDPin;
 
     // Logic Pins For Non-Digital Stepper Drivers:
-    const int  motor_pin_1  = 5;
-    const int  motor_pin_2  = 6;
-    const int  motor_pin_3  = 7;
-    const int  motor_pin_4  = 8;
+    int  motor_pin_1;
+    int  motor_pin_2;
+    int  motor_pin_3;
+    int  motor_pin_4;
 
     bool        Homed = false;  // The motor must be "Homed" before use
     const long  RampScale = 5L;
@@ -249,14 +256,17 @@ class StepperMotorController
     long           VelocityIncrement;  // Velocity adjustment for ramping (determined by ramp factor)
     long           NextPosition;       // Position after next step
     unsigned long  NextStepMicros;     // Target micros for next step
-    String         RunReturn = "";     // Return from Run method
+    RunReturn_t    RunReturn = RUN_OK; // Return from Run method
+
 
     void startRotation();
+    void commonInit();
 
   public:
-    StepperMotorController(int enablePin=2, int directionPin=3, int stepPin=4, int ledPin=13);
+    StepperMotorController(int enablePin=2, int directionPin=3, int stepPin=4, int ledPin=13); // DIGITAL driver
+    StepperMotorController(int pin1=2, int pin2=3, int pin3=4,  int pin4=5,    int ledPin=13);    // NON-Digital drivert
 
-    String Run();  // Keeps the motor running (must be called from your loop() function with no delay)
+    RunReturn_t      Run();  // Keeps the motor running (must be called from your loop() function with no delay)
 
     void           Enable              ();                                      // Enables the motor driver (energizes the motor)
     void           Disable             ();                                      // Disables the motor driver (releases the motor)
@@ -280,10 +290,10 @@ class StepperMotorController
     long           GetLowerLimit       ();                                      // Returns the motor's Absolute LOWER LIMIT position
     long           GetUpperLimit       ();                                      // Returns the motor's Absolute UPPER LIMIT position
     unsigned long  GetRemainingTime    ();                                      // Return the remaining time in ms when rotation will complete
-    String         GetVersion          ();                                      // Returns this firmware's current version
+    const char *   GetVersion          ();                                      // Returns this firmware's current version
     void           BlinkLED            ();                                      // Blink the onboard LED to indicate identification
 
-    String         ExecuteCommand      (String command);                        // Execute a stepper motor function by String command (see notes above)
+ //   String         ExecuteCommand      (String command);                        // Execute a stepper motor function by String command (see notes above)
 };
 
 #endif

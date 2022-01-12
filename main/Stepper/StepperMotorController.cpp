@@ -14,9 +14,40 @@
 
 #include "Arduino.h"
 #include "StepperMotorController.h"
+const char * StepperMotorController::Version =
+    		"Stepper Motor Controller 2022-1-8\nCopyright 2013-2022, D+S Tech Labs, Inc.\nAll Rights Reserved.";
+
 
 //==========================================================
-//  Constructor
+//  Constructor - NON - DIGITAL driver
+//==========================================================
+StepperMotorController::StepperMotorController(int pin1, int pin2, int pin3, int pin4, int ledPin) {
+	  // Save the specified pins
+	  motor_pin_1    = pin1;
+	  motor_pin_2    = pin2;
+	  motor_pin_3    = pin3;
+	  motor_pin_4    = pin4;
+	  LEDPin         = ledPin;
+
+	  // Set all pin modes as DIGITAL OUTPUT's
+
+	  pinMode(motor_pin_1 , OUTPUT);
+	  pinMode(motor_pin_2 , OUTPUT);
+	  pinMode(motor_pin_3 , OUTPUT);
+	  pinMode(motor_pin_4 , OUTPUT);
+
+	  // Initialize pins
+	  digitalWrite(motor_pin_1 , LOW );  // Coil off
+	  digitalWrite(motor_pin_2 , LOW );  // Coil off
+	  digitalWrite(motor_pin_3 , LOW );  // Coil off
+	  digitalWrite(motor_pin_4 , LOW );  // Coil off
+
+	  commonInit();
+}
+
+
+//==========================================================
+//  Constructor - DIGITAL driver
 //==========================================================
 StepperMotorController::StepperMotorController (int enablePin, int directionPin, int stepPin, int ledPin)
 {
@@ -31,45 +62,53 @@ StepperMotorController::StepperMotorController (int enablePin, int directionPin,
   pinMode(DirectionPin, OUTPUT);
   pinMode(StepPin     , OUTPUT);
   pinMode(LEDPin      , OUTPUT);
-  pinMode(motor_pin_1 , OUTPUT);
-  pinMode(motor_pin_2 , OUTPUT);
-  pinMode(motor_pin_3 , OUTPUT);
-  pinMode(motor_pin_4 , OUTPUT);
 
   // Initialize pins
   digitalWrite(EnablePin   , HIGH);  // Start with driver disabled
   digitalWrite(DirectionPin, LOW );
   digitalWrite(StepPin     , LOW );  // No pulse
   digitalWrite(LEDPin      , LOW );  // Turn off LED
-  digitalWrite(motor_pin_1 , LOW );  // Coil off
-  digitalWrite(motor_pin_2 , LOW );  // Coil off
-  digitalWrite(motor_pin_3 , LOW );  // Coil off
-  digitalWrite(motor_pin_4 , LOW );  // Coil off
 
-  // Set motor state and step position/timing
-  Homed             = false;
-  MotorState        = DISABLED;
-  StepIncrement     = 1L;
-  AbsolutePosition  = 0L;
-  DeltaPosition     = 0L;
-  TargetPosition    = 0L;
-  LowerLimit        = -2000000000L;
-  UpperLimit        =  2000000000L;
-  RampSteps         = 0L;
-  RampDownStep      = 0L;
-  Velocity          = 0L;
-  VelocityIncrement = RampScale * 5L;  // Default ramp scale of 5
-  NextPosition      = 0L;
-  NextStepMicros    = -1L;
-  RunReturn         = "";
-
-//  // Flash LED to indicate board is ready
-//  for (int i=0; i<5; i++)
-//  {
-//    digitalWrite(LEDPin, HIGH); delay(100);
-//    digitalWrite(LEDPin, LOW ); delay(400);
-//  }
+  commonInit();
 }
+
+//=========================================================
+//  commonInit:
+//  This initializes variables that are the same for both
+//  Digital and Non-Digital instances
+//=========================================================
+void StepperMotorController::commonInit()
+{
+	 // Set motor state and step position/timing
+	  Homed             = false;
+	  MotorState        = DISABLED;
+	  StepIncrement     = 1L;
+	  AbsolutePosition  = 0L;
+	  DeltaPosition     = 0L;
+	  TargetPosition    = 0L;
+	  LowerLimit        = -2000000000L;
+	  UpperLimit        =  2000000000L;
+	  RampSteps         = 0L;
+	  RampDownStep      = 0L;
+	  Velocity          = 0L;
+	  VelocityIncrement = RampScale * 5L;  // Default ramp scale of 5
+	  NextPosition      = 0L;
+	  NextStepMicros    = -1L;
+	  RunReturn         = RUN_OK;
+
+	  MaxVelocity       = 0;
+	  TargetOrSteps     = 0;
+	  TotalSteps        = 0;
+	  StepCount         = 0;
+
+	//  // Flash LED to indicate board is ready
+	//  for (int i=0; i<5; i++)
+	//  {
+	//    digitalWrite(LEDPin, HIGH); delay(100);
+	//    digitalWrite(LEDPin, LOW ); delay(400);
+	//  }
+}
+
 
 //=========================================================
 //  Run:
@@ -81,9 +120,9 @@ StepperMotorController::StepperMotorController (int enablePin, int directionPin,
 //    "RE"  - Range Error (tried to pass a limit)
 //    ""    - Empty String (sitting idle or still running)
 //=========================================================
-String StepperMotorController::Run()
+RunReturn_t StepperMotorController::Run()
 {
-  RunReturn = "";
+   RunReturn = RUN_OK;
   
   // If motor is RUNNING and it's time for it to step, then issue step pulse
   if (Homed && MotorState == RUNNING)
@@ -98,7 +137,7 @@ String StepperMotorController::Run()
         // Next step will be out of range,
         // So stop motor and return range error
         MotorState = ENABLED;
-        RunReturn = "RE";  // Range Error
+        RunReturn = RUN_RANGE_ERROR;  // Range Error
       }
       else  // Perform single step
       {
@@ -162,7 +201,7 @@ String StepperMotorController::Run()
         {
           // Yes, stop motor and indicate completion with position
           MotorState = ENABLED;
-          RunReturn = "RC" + String(AbsolutePosition);
+          RunReturn = RUN_COMPLETE;
         }
         else
         {
@@ -220,12 +259,12 @@ void StepperMotorController::startRotation ()
   if (TargetPosition > AbsolutePosition)
   {
     StepIncrement = 1L;
-    digitalWrite(DirectionPin, LOW);
+    if (DriverType == DIGITAL) digitalWrite(DirectionPin, LOW);
   }
   else if (TargetPosition < AbsolutePosition)
   {
     StepIncrement = -1L;
-    digitalWrite(DirectionPin, HIGH);
+    if (DriverType == DIGITAL) digitalWrite(DirectionPin, HIGH);
   }
   else
   {
@@ -245,7 +284,11 @@ void StepperMotorController::startRotation ()
 void StepperMotorController::Enable ()
 {
   // Enable motor driver
-  digitalWrite(EnablePin, LOW);
+	if (DriverType == DIGITAL)
+	{
+		digitalWrite(EnablePin, LOW);
+	}
+
   MotorState = ENABLED;
 }
 
@@ -254,7 +297,15 @@ void StepperMotorController::Enable ()
 void StepperMotorController::Disable ()
 {
   // Disable motor driver
-  digitalWrite(EnablePin, HIGH);
+  if (DriverType == DIGITAL) {
+	  digitalWrite(EnablePin, HIGH);
+  } else {
+	  digitalWrite(motor_pin_1, LOW);
+	  digitalWrite(motor_pin_2, LOW);
+	  digitalWrite(motor_pin_3, LOW);
+	  digitalWrite(motor_pin_4, LOW);
+  }
+
   MotorState = DISABLED;
   Homed      = false;  // When motor is free to move, the HOME position is lost
 }
@@ -366,13 +417,15 @@ void StepperMotorController::EStop()
 {
   // Emergency Stop
   // ((( Requires Re-Enable and Re-Homing of motor )))
-  digitalWrite(StepPin  , LOW );   // Pulse Off for digital drivers
-  digitalWrite(EnablePin, HIGH);   // Disengage
-  digitalWrite(motor_pin_1, LOW);  // Coil Off
-  digitalWrite(motor_pin_2, LOW);  // Coil Off
-  digitalWrite(motor_pin_3, LOW);  // Coil Off
-  digitalWrite(motor_pin_4, LOW);  // Coil Off
-
+	if (DriverType==DIGITAL) {
+		digitalWrite(StepPin  , LOW );   // Pulse Off for digital drivers
+		digitalWrite(EnablePin, HIGH);   // Disengage
+	} else {
+		digitalWrite(motor_pin_1, LOW);  // Coil Off
+		digitalWrite(motor_pin_2, LOW);  // Coil Off
+		digitalWrite(motor_pin_3, LOW);  // Coil Off
+		digitalWrite(motor_pin_4, LOW);  // Coil Off
+	}
   MotorState = STOPPED;
   Homed = false;
   TargetPosition = AbsolutePosition;
@@ -440,7 +493,7 @@ unsigned long StepperMotorController::GetRemainingTime()
 
 //=== GetVersion ========================================
 
-String StepperMotorController::GetVersion()
+const char * StepperMotorController::GetVersion()
 {
   return Version;
 }
@@ -459,7 +512,7 @@ void StepperMotorController::BlinkLED()
   }
 }
 
-
+#ifdef  DONOTUSE
 //========================================================
 //  ExecuteCommand
 //========================================================
@@ -576,3 +629,5 @@ String StepperMotorController::ExecuteCommand(String packet)
 
   return "";
 }
+
+#endif
