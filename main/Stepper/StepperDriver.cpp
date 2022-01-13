@@ -9,17 +9,26 @@
 #include "StepperDriver.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
 
 static const char *TAG="STEPPER DRIVER::";
 
+#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);\
+		esp_timer_stop (myTimer );
+
+#define STARTCLOCK xSemaphoreGive(mylock);\
+		clockCallback (this );
+
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
 	myTimer=0;
 	nodControl=nullptr;
 	rotControl=nullptr;
+	mylock = xSemaphoreCreateBinaryStatic(&mylocksBuffer);
 }
 
 StepperDriver::~StepperDriver ()
@@ -65,71 +74,70 @@ void StepperDriver::handleNodCommands (const Message *msg)
 	{
 		case (EVENT_ACTION_SETVALUE):
 			// This causes us to go to the given position, at the given rate.
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->RotateAbsolute (msg->value, msg->rate );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_HOME):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->SetHomePosition ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_LOWER_LIMIT):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->SetLowerLimit (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_UPPER_LIMIT):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->SetUpperLimit (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_RAMP):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->SetRamp (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOHOME):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->RotateToHome ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOUPPER):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->RotateToUpperLimit ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOLOWER):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->RotateToLowerLimit ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_ESTOP):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->EStop ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_ENABLE):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->Enable ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_DISABLE):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			nodControl->Disable ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
-
 
 		case (EVENT_STEPPER_GET_ABS_POS):
 			respMsg = Message::future_Message (msg->response, TASK_NAME::NODD,
@@ -170,69 +178,70 @@ void StepperDriver::handleRotCommands (const Message *msg)
 	{
 		case (EVENT_ACTION_SETVALUE):
 			// This causes us to go to the given position, at the given rate.
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->RotateAbsolute (msg->value, msg->rate );
-			clockCallback (this );
+			STARTCLOCK
+			;
 			break;
 
 		case (EVENT_STEPPER_SET_HOME):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->SetHomePosition ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_LOWER_LIMIT):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->SetLowerLimit (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_UPPER_LIMIT):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->SetUpperLimit (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_SET_RAMP):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->SetRamp (msg->value );
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOHOME):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->RotateToHome ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOUPPER):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->RotateToUpperLimit ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GOLOWER):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->RotateToLowerLimit ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_ESTOP):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->EStop ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_ENABLE):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->Enable ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_DISABLE):
-			esp_timer_stop (myTimer );
+			STOPCLOCK
 			rotControl->Disable ();
-			clockCallback (this );
+			STARTCLOCK
 			break;
 
 		case (EVENT_STEPPER_GET_ABS_POS):
@@ -266,7 +275,7 @@ void StepperDriver::handleRotCommands (const Message *msg)
 			break;
 
 		default:
-			ESP_LOGE(TAG, "UNKNWON ROTATE EVENT NUMBER %d",msg->event );
+			ESP_LOGE(TAG, "UNKNWON ROTATE EVENT NUMBER %d", msg->event );
 			break;
 	}
 }
@@ -287,12 +296,16 @@ void StepperDriver::handleRotCommands (const Message *msg)
  * We will start it
  */
 void StepperDriver::clockCallback(void *arg) {
+	static BaseType_t xHigherPriorityTaskWoken=pdFALSE;
+
 	StepperDriver *me= (StepperDriver *)arg;
+	xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
 	me->nodControl->Run();
 	me->rotControl->Run();
 	int64_t nextNodTime=me->nodControl->GetTimeToNextStep();
 	int64_t	nextRotTime=me->rotControl->GetTimeToNextStep();
 	int64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
 	esp_timer_start_once(me->myTimer, nextTime);
 }
 
@@ -316,7 +329,10 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.callback=&me->clockCallback;
 	timer_cfg.name = "stepperTimer";
 	timer_cfg.arg = me;
+	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
+
+	clockCallback(me);   // First time thru the clock callback.
 
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
@@ -327,6 +343,5 @@ void StepperDriver::runTask(void *param) {
 	{
 		vTaskDelay(10000);
 	}
-
 
 }

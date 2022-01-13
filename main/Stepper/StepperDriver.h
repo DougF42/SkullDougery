@@ -8,6 +8,8 @@
 
 #ifndef MAIN_STEPPER_STEPPERDRIVER_H_
 #define MAIN_STEPPER_STEPPERDRIVER_H_
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "../Sequencer/DeviceDef.h"
 #include "StepperMotorController.h"
 #include "esp_timer.h"
@@ -47,6 +49,8 @@ private:
 	static void clockCallback(void *_me);
 	void handleNodCommands(const Message *msg);
 	void handleRotCommands(const Message *msg);
+	SemaphoreHandle_t mylock;
+	StaticSemaphore_t  mylocksBuffer;
 
 };
 
