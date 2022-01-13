@@ -7,6 +7,7 @@
  */
 
 #include "Arduino.h"
+#include "unistd.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
@@ -20,6 +21,7 @@ static const char *TAG="Arduino.cpp-";
  */
 void pinMode(int pin,  enum IOMODE mode) {
 	gpio_config_t cfg ={};
+	if (pin==0) return;
 
 	cfg.pin_bit_mask= (1<<pin);  // set the pin number
 	cfg.pull_down_en=GPIO_PULLDOWN_DISABLE;
@@ -53,6 +55,7 @@ void pinMode(int pin,  enum IOMODE mode) {
  * Set the level of the pin. dir is HIGH or LOW
  */
 void digitalWrite(int pin, bool level) {
+	if (pin==0) return; // Ignore pin 0
 	gpio_set_level( (gpio_num_t)pin, level);
 }
 
@@ -77,11 +80,7 @@ unsigned long micros() {
  * this should be okay.
  */
 void delayMicroseconds(unsigned int us) {
-	int64_t now=esp_timer_get_time();
-	int64_t target=now+us;
-	while ( (now=esp_timer_get_time()) < target) {
-
-	}
+	usleep(us);
 }
 
 /**

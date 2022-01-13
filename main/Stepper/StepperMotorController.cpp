@@ -43,14 +43,14 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   pinMode(pin1  , OUTPUT);
   pinMode(pin2  , OUTPUT);
   pinMode(pin3  , OUTPUT);
-  pinMode(pin4  , OUTPUT);
+  if (driverType==NON_DIGITAL)  pinMode(pin4  , OUTPUT);
   pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
   digitalWrite(pin1, LOW);
   digitalWrite(pin2, LOW);
   digitalWrite(pin3, LOW);
-  digitalWrite(pin4, LOW);
+  if (driverType==NON_DIGITAL)  digitalWrite(pin4, LOW);
 
   // If DIGITAL, start with motor disabled
   if (DriverType == DIGITAL)
@@ -79,6 +79,14 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   StepCount         = 0;
 }
 
+//=========================================================
+// GetTimeToNextStep
+//    This is used to determine how long before we need
+// to call 'Run' again.
+//=========================================================
+unsigned long  StepperMotorController::GetTimeToNextStep   () {
+	return (NextStepMicros);
+}
 
 //=========================================================
 //  Run:
@@ -482,7 +490,7 @@ void StepperMotorController::BlinkLED()
   }
 }
 
-
+#ifdef DONTUSETHIS
 //========================================================
 //  ExecuteCommand
 //========================================================
@@ -604,3 +612,4 @@ char * StepperMotorController::ExecuteCommand(char *packet)
 
   return "";
 }
+#endif

@@ -293,6 +293,7 @@ class StepperMotorController
     unsigned long  GetRemainingTime    ();                                      // Return the remaining time in ms when rotation will complete
     const char *   GetVersion          ();                                      // Returns this firmware's current version
     void           BlinkLED            ();                                      // Blink the onboard LED to indicate identification
+    unsigned long  GetTimeToNextStep   ();                                      // How long before the next step...
 
     char *         ExecuteCommand      (char *command);                         // Execute a stepper motor function by string command (see notes above)
 };
