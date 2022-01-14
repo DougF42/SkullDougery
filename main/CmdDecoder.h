@@ -51,6 +51,7 @@ typedef responseStatus_enum responseStatus_t;
 protected:
 	void parseCommand();
 	void dispatchCommand(int tokCount, char *tokens[]);
+	void stepperCommands(int tokCount, char *tokens[]);
 
 private:
 	void help();
@@ -60,6 +61,7 @@ private:
 	int getIntArg(int tokNo, char *tokens[], int minVal, int maxVal);
 	void showCurSettings();
 	void setCommands (int tokCount, char *tokens[]);
+	bool requireArgs(int tokenCount, char *tokens[],  int required, long int *arg1, long int *arg2);
 };
 
 #endif /* MAIN_CMDDECODER_H_ */

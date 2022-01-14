@@ -31,6 +31,7 @@
 #include "SndPlayer.h"
 #include "config.h"
 #include "Parameters/RmNvs.h"
+#include "Stepper/StepperDriver.h"
 
 static const char *TAG="CmdDecoder::";
 
@@ -176,6 +177,57 @@ void CmdDecoder::help() {
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
 	postResponse(" set  key value (see show command output)", RESPONSE_OK);
 }
+
+
+/**
+ * This tests the token count, and reports a suitable error
+ * message if we dont have the right number of arguments.
+ * If arg1 and arg2 are non-null, then we decode those parameters
+ * as integers - and return suitable errors if they are not
+ * reasonable integers.
+ *
+ *  tokens[0] orig command.
+ *  tokens[1] subcommand.
+ *  tokens[2] 1st arg
+ *  tokens[3] 2nd arg
+ *
+ * @param required - the number of tokens required
+ * @param tokenCount - the number of tokens in the command
+ * @return  true normally, false if wrong number of tokens.
+ *          if false, this will post a suitable syntax error
+ */
+bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long int *arg1, long int *arg2) {
+	char *endptr=NULL;
+	if (required > tokenCount)
+				{
+					postResponse ("Missing argument(s) for this command", RESPONSE_SYNTAX );
+					return false;
+				}
+
+	if (required < tokenCount)
+	{
+					postResponse ("Extra text after argument to this command.",	RESPONSE_SYNTAX );
+					return false;
+	}
+
+	if (arg1 != NULL) {
+		*arg1=strtol(tokens[2], &endptr, 10);
+		if ( *endptr != '\0') {
+			postResponse ("Invalid integer for argument 1", RESPONSE_SYNTAX);
+			return false;
+		}
+	}
+
+	if (arg2 != NULL) {
+		*arg2=strtol(tokens[3], &endptr, 10);
+		if ( *endptr != '\0') {
+			postResponse ("Invalid integer for argument 2", RESPONSE_SYNTAX);
+			return false;
+		}
+	}
+	return(true);
+}
+
 /**
  * Process the tokenized command, and send an appropriate response.
  *
@@ -184,7 +236,7 @@ void CmdDecoder::help() {
  * tokNo    the number of tokens.
  */
 #define ISCMD(_a_) (0==strcasecmp(tokens[0], (_a_)))
-
+#define ISSUBCMD(_a_) (0==strcasecmp(tokens[1], (_a_)))
 void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 {
 	Message *msg;
@@ -254,6 +306,14 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	{
 		setCommands( tokCount, tokens);
 	}
+	else if (ISCMD("NOD")) // Any of the NOD commands
+	{
+		stepperCommands(tokCount, tokens);
+	}
+	else if (ISCMD("ROT")) // Any of the ROTate commands
+	{
+		stepperCommands(tokCount, tokens);
+	}
 	else
 	{
 		// TODO: UNKNOWN COMMAND
@@ -278,6 +338,7 @@ void CmdDecoder::showCurSettings() {
 	}
 	postResponse("END", RESPONSE_OK);
 }
+
 
 /**
  * This will handle any 'set *' command...
@@ -375,5 +436,157 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		postResponse ("OK", RESPONSE_OK );
 	}
 
+	return;
+}
+
+
+/**
+ * This handles any of the 'stepper' commands - either the
+ * 'Rot'ational or 'Nodd' commands or requests.
+ *
+ * @param required - the number of tokens required
+ * @param tokenCount - the number of tokens in the command
+ *
+ */
+// TODO: HOW DO WE GET A RESPONSE BACK TO THE CALLER?????
+void CmdDecoder::stepperCommands(int tokCount, char *tokens[]) {
+	TASK_NAME destination=TASK_NAME::TEST;
+	Message *msg=nullptr;
+	long int posit=0;
+	long int rate=0;
+
+	if (ISCMD("ROT"))  destination=TASK_NAME::ROTATE;
+	else if (ISCMD("NODD"))  destination=TASK_NAME::NODD;
+	else {
+		//TODO: Unknown command in stepperCommands????
+	}
+
+	if (ISSUBCMD("EN"))   // Enable
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_ENABLE, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("DI")) // Disable
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_DISABLE, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("SH")) // Set Home .
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_HOME, posit, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("SL")) // Set Lower .
+	{
+		if (!requireArgs( tokCount, tokens, 3, &posit, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_LOWER_LIMIT, posit, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("SU")) // Set Upper
+	{
+		if (!requireArgs( tokCount, tokens, 3, &posit, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_UPPER_LIMIT, posit, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("SR")) // Set Ramp
+	{
+		if (!requireArgs( tokCount, tokens, 2, &posit, NULL)) return;
+		if ((posit<0)||(posit>9)) {
+			postResponse("Bad Value", RESPONSE_COMMAND_ERRR);
+		} else {
+			msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_RAMP, posit, 0);
+			SwitchBoard::send(msg);
+			postResponse("OK", RESPONSE_OK);
+		}
+	}
+	else if (ISSUBCMD("RA"))  // Rotate Abs ...
+	{
+		if (!requireArgs( tokCount, tokens, 4, &posit, &rate)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOABS, posit, rate);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("RR"))  // Rotate Rel ...
+	{
+		if (!requireArgs( tokCount, tokens, 4, &posit, &rate)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOREL, posit, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("RH")) // Rotate Home
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOHOME, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("RL")) // Rotate Lower
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOLOWER, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("RU")) // Rotate Upper
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOUPPER, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("ES")) // E-STOP
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_ESTOP, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("GA")) // Get Abs position
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_ABS_POS, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("GR")) // Get Rel Position
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_REL_POS, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("GL")) // Get Lower Limit
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_LOW_LIMIT, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("GU")) // get Upper Limit
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_UPR_LIMIT, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else if (ISSUBCMD("GT")) // Geet remaining time
+	{
+		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
+		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_REM_TIME, 0, 0);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+	}
+	else
+	{
+		postResponse("Unknown command", RESPONSE_SYNTAX);
+	}
 	return;
 }
