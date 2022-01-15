@@ -28,6 +28,7 @@
 #include "CmdDecoder.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
+#include "Sequencer/DeviceDef.h"
 #include "SndPlayer.h"
 #include "config.h"
 #include "Parameters/RmNvs.h"
@@ -35,7 +36,8 @@
 
 static const char *TAG="CmdDecoder::";
 
-CmdDecoder::CmdDecoder (TASK_NAME myId) {
+CmdDecoder::CmdDecoder (TASK_NAME myId):DeviceDef("Cmd Decoder") {
+	respBufSempahore=xSemaphoreCreateBinaryStatic(&respBufSemaphoreBuffer);
 	senderTaskName=myId;
 	flush();
 }
@@ -449,144 +451,209 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
  *
  */
 // TODO: HOW DO WE GET A RESPONSE BACK TO THE CALLER?????
-void CmdDecoder::stepperCommands(int tokCount, char *tokens[]) {
-	TASK_NAME destination=TASK_NAME::TEST;
-	Message *msg=nullptr;
-	long int posit=0;
-	long int rate=0;
+void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
+{
+	TASK_NAME destination = TASK_NAME::TEST;
+	Message *msg = nullptr;
+	long int posit = 0;
+	long int rate = 0;
 
-	if (ISCMD("ROT"))  destination=TASK_NAME::ROTATE;
-	else if (ISCMD("NODD"))  destination=TASK_NAME::NODD;
-	else {
-		//TODO: Unknown command in stepperCommands????
-	}
+	if (ISCMD("ROT" ))
+		destination = TASK_NAME::ROTATE;
+	else
+		destination = TASK_NAME::NODD;
 
-	if (ISSUBCMD("EN"))   // Enable
+	if (ISSUBCMD("EN" ))   // Enable
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_ENABLE, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_ENABLE, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("DI")) // Disable
+	else if (ISSUBCMD("DI" )) // Disable
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_DISABLE, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_DISABLE, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("SH")) // Set Home .
+	else if (ISSUBCMD("SH" )) // Set Home .
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_HOME, posit, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_SET_HOME, posit, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("SL")) // Set Lower .
+	else if (ISSUBCMD("SL" )) // Set Lower .
 	{
-		if (!requireArgs( tokCount, tokens, 3, &posit, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_LOWER_LIMIT, posit, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 3, &posit, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_SET_LOWER_LIMIT, posit, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("SU")) // Set Upper
+	else if (ISSUBCMD("SU" )) // Set Upper
 	{
-		if (!requireArgs( tokCount, tokens, 3, &posit, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_UPPER_LIMIT, posit, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 3, &posit, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_SET_UPPER_LIMIT, posit, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("SR")) // Set Ramp
+	else if (ISSUBCMD("SR" )) // Set Ramp
 	{
-		if (!requireArgs( tokCount, tokens, 2, &posit, NULL)) return;
-		if ((posit<0)||(posit>9)) {
-			postResponse("Bad Value", RESPONSE_COMMAND_ERRR);
-		} else {
-			msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_SET_RAMP, posit, 0);
-			SwitchBoard::send(msg);
-			postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, &posit, NULL )) return;
+		if ((posit < 0) || (posit > 9))
+		{
+			postResponse ("Bad Value", RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			msg = Message::future_Message (destination, senderTaskName,
+					EVENT_STEPPER_SET_RAMP, posit, 0 );
+			SwitchBoard::send (msg );
+			postResponse ("OK", RESPONSE_OK );
 		}
 	}
-	else if (ISSUBCMD("RA"))  // Rotate Abs ...
+	else if (ISSUBCMD("RA" ))  // Rotate Abs ...
 	{
-		if (!requireArgs( tokCount, tokens, 4, &posit, &rate)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOABS, posit, rate);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 4, &posit, &rate )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GOABS, posit, rate );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("RR"))  // Rotate Rel ...
+	else if (ISSUBCMD("RR" ))  // Rotate Rel ...
 	{
-		if (!requireArgs( tokCount, tokens, 4, &posit, &rate)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOREL, posit, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 4, &posit, &rate )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GOREL, posit, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("RH")) // Rotate Home
+	else if (ISSUBCMD("RH" )) // Rotate Home
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOHOME, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GOHOME, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("RL")) // Rotate Lower
+	else if (ISSUBCMD("RL" )) // Rotate Lower
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOLOWER, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GOLOWER, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("RU")) // Rotate Upper
+	else if (ISSUBCMD("RU" )) // Rotate Upper
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GOUPPER, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GOUPPER, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("ES")) // E-STOP
+	else if (ISSUBCMD("ES" )) // E-STOP
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_ESTOP, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_ESTOP, 0, 0 );
+		SwitchBoard::send (msg );
+		postResponse ("OK", RESPONSE_OK );
 	}
-	else if (ISSUBCMD("GA")) // Get Abs position
+	else if (ISSUBCMD("GA" )) // Get Abs position
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_ABS_POS, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GET_ABS_POS, 0, 0 );
+		SwitchBoard::send (msg );
+		// expect response thru message callback
 	}
-	else if (ISSUBCMD("GR")) // Get Rel Position
+	else if (ISSUBCMD("GR" )) // Get Rel Position
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_REL_POS, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GET_REL_POS, 0, 0 );
+		SwitchBoard::send (msg );
+		// expect response thru message callback
 	}
-	else if (ISSUBCMD("GL")) // Get Lower Limit
+	else if (ISSUBCMD("GL" )) // Get Lower Limit
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_LOW_LIMIT, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GET_LOW_LIMIT, 0, 0 );
+		SwitchBoard::send (msg );
+		// expect response thru message callback
 	}
-	else if (ISSUBCMD("GU")) // get Upper Limit
+	else if (ISSUBCMD("GU" )) // get Upper Limit
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_UPR_LIMIT, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GET_UPR_LIMIT, 0, 0 );
+		SwitchBoard::send (msg );
+		// expect response thru message callback
 	}
-	else if (ISSUBCMD("GT")) // Geet remaining time
+	else if (ISSUBCMD("GT" )) // Geet remaining time
 	{
-		if (!requireArgs( tokCount, tokens, 2, NULL, NULL)) return;
-		msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_GET_REM_TIME, 0, 0);
-		SwitchBoard::send(msg);
-		postResponse("OK", RESPONSE_OK);
+		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
+		msg = Message::future_Message (destination, senderTaskName,
+				EVENT_STEPPER_GET_REM_TIME, 0, 0 );
+		SwitchBoard::send (msg );
+		// expect response thru message callback
 	}
 	else
 	{
-		postResponse("Unknown command", RESPONSE_SYNTAX);
+		postResponse ("Unknown command", RESPONSE_SYNTAX );
 	}
 	return;
+}
+
+
+/**
+ * This accepts messages from the various devices, and translates them into
+ * a text response, which is then sent out via the 'postResponse' routine which
+ * is provided by the channel.
+ *
+ * To prevent various overrun problems (such as multiple messages from different
+ * tasks arriving back-to-back), we use a semaphore to prevent
+ * the possibility of a second messsage being delivered before the first is
+ * completely dealt with.
+ *
+ */
+void CmdDecoder::callBack(const Message *msg)
+{
+	xSemaphoreTake(respBufSempahore, (TickType_t ) 10 );
+	if ((msg->response == TASK_NAME::NODD)
+			|| (msg->response == TASK_NAME::ROTATE))
+	{
+		switch (msg->event)
+		{
+			case (EVENT_STEPPER_GET_ABS_POS):
+			case (EVENT_STEPPER_GET_REL_POS):
+			case (EVENT_STEPPER_GET_LOW_LIMIT):
+			case (EVENT_STEPPER_GET_UPR_LIMIT):
+				snprintf (respBuf, sizeof(respBuf), " Position is %ld",
+						msg->value );
+				postResponse (respBuf, RESPONSE_OK );
+				break;
+
+			case (EVENT_STEPPER_GET_REM_TIME):
+				snprintf (respBuf, sizeof(respBuf), "Time is %ld", msg->value );
+				postResponse (respBuf, RESPONSE_OK );
+				break;
+
+			default:
+				snprintf(respBuf, sizeof(respBuf), "Unkown response from NODD or ROTATE. Event was %d, value %ld",
+						msg->event, msg->value);
+				postResponse(respBuf, RESPONSE_OK);
+				break;
+		}
+
+	}
+	xSemaphoreGive(respBufSempahore );
 }

@@ -14,6 +14,7 @@
 #include "freertos/semphr.h"
 #include "string.h"
 #include "Sequencer/Message.h"
+#include "Sequencer/DeviceDef.h"
 #include "config.h"
 
 #ifndef MAIN_CMDDECODER_H_
@@ -29,7 +30,7 @@
  *
  * REPLYS are always a null-terminated text string.
  */
-class CmdDecoder
+class CmdDecoder :public DeviceDef
 {
 public:
 	enum responseStatus_enum {
@@ -46,6 +47,16 @@ typedef responseStatus_enum responseStatus_t;
 	void addEOLtoBuffer(void);
 	int addToBuffer(const char *dta, int dtaLen);
 	void flush();                // Flush messages and input queue.
+	/*
+	 * This is the callback where messages are delivered to us.
+	 */
+	void callBack(const Message *msg);
+	/*
+	 * send a response back down the channel that a command came from.
+	 * respTxt is a static buffer that is only good until the next response
+	 * arrives.
+	 *
+	 */
 	virtual void postResponse(const char *respTxt,  responseStatus_t respcode)=0;
 
 protected:
@@ -58,6 +69,10 @@ private:
 	char cmdBuf[CMD_BUF_MAX_LEN];
 	int  cmdBufNextChar;
 	enum TASK_NAME senderTaskName;
+	char respBuf[CMD_BUF_MAX_LEN];
+	SemaphoreHandle_t respBufSempahore;
+	StaticSemaphore_t respBufSemaphoreBuffer;
+
 	int getIntArg(int tokNo, char *tokens[], int minVal, int maxVal);
 	void showCurSettings();
 	void setCommands (int tokCount, char *tokens[]);

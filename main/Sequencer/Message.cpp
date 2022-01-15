@@ -17,8 +17,8 @@ Message::Message ()
 	event = EVENT_ACTION_NONE;
 	destination=TASK_NAME::IDLER;
 	response=TASK_NAME::IDLER;
-	value = 0;
-	rate  = 0;
+	value = 0L;
+	rate  = 0L;
 
 }
 
@@ -53,7 +53,7 @@ Message::Message (const Message &oldObj)
  *
  */
 Message *Message::future_Message( TASK_NAME _target,
-		TASK_NAME _from, int _event, int _value, int _rate) {
+		TASK_NAME _from, int _event, long int _value, long int _rate) {
 	Message *m=new Message();
 	m->event = _event;
 	m->destination= _target;

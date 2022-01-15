@@ -29,6 +29,8 @@
 #include <lwip/netdb.h>
 
 #include "../Parameters/RmNvs.h"
+#include "../Sequencer/DeviceDef.h"
+#include "../Sequencer/SwitchBoard.h"
 
 const static char *TAG="...UDPSERVER";
 
@@ -52,6 +54,9 @@ void UDPServer::startListenTask(void *param)
 
 	int addr_family = AF_INET;
 	int ip_protocol = 0;
+
+	//TODO: REGISTER AS A DEVICE (to receive responses!)
+	SwitchBoard::registerDriver(TASK_NAME::UDP, me);
 
 	while (1)
 	{
@@ -139,7 +144,9 @@ void UDPServer::startListenTask(void *param)
 
 
 /**
- * This sends a response TO the current source_addr, on 'sock' (the UDP socket).
+ * This formats any response message and sends it over the network to the current source_addr,
+ * on 'sock' (the UDP socket).
+ *
  * @param respTxt - the text of the message to send.
  *
  * @param respcode - A short code of responseStatus_t type that

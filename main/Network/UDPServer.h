@@ -27,8 +27,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
-
-
+#include "../Sequencer/DeviceDef.h"
 
 class UDPServer: public CmdDecoder
 {
