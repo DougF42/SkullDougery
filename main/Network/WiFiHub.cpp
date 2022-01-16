@@ -88,7 +88,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 			case (WIFI_EVENT_STA_CONNECTED):
 				// WiFi has connected to the HUB, but does not yet have DHCP address.
 				event_connect_sta = (wifi_event_sta_connected_t*) event_data;
-				char ssid[9];
+				char ssid[32];
 				memcpy (ssid, event_data, event_connect_sta->ssid_len );
 				ssid[event_connect_sta->ssid_len] = '\0';
 				ESP_LOGI(TAG, "CONNECTED to HUB: ssid=%s,  channel=%d", ssid,
@@ -126,9 +126,9 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 			break;
 
 			case (IP_EVENT_STA_GOT_IP):
-				// TODO: start the server
+				// start the UDP server (Station mode only)
 				ESP_LOGI(TAG, "Got IP address: start UDP server" );
-				if (me->udpServerTask==nullptr) {
+				if (me->udpServerTask==0) {
 					me->udpserver=new UDPServer(TASK_NAME::UDP);
 					xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
 							(void*) me->udpserver, 1, &me->udpServerTask );
@@ -136,12 +136,12 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				break;
 
 			case (IP_EVENT_STA_LOST_IP):
-				// TODO:
-				ESP_LOGI(TAG, "LOST IP! terminate UDP server");
+				// TODO: Is this the right thing to do?
+				ESP_LOGI(TAG, "LOST IP! terminate UDP server?");
+
 				vTaskDelete(me->udpserver);
 				delete me->udpserver;
 				break;
-
 		} // end of case for IP events
 	} // end of IF for IP EVENTs
 }
@@ -154,7 +154,7 @@ WiFiHub::~WiFiHub() {
 
 
 /**
- * Initializer - do nothing.
+ * Initializer
  */
  WiFiHub::WiFiHub() {
 	 udpserver=nullptr;
@@ -234,10 +234,10 @@ void WiFiHub::WiFi_STA_init ()
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
 
 	ESP_ERROR_CHECK(
-			esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, nullptr) );
+			esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, this, NULL) );
 
 	ESP_ERROR_CHECK(
-			esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, nullptr) );
+			esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, this, NULL) );
 
 	wifi_config_t wifi_config = { };
 
