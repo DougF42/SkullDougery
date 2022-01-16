@@ -88,7 +88,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 			case (WIFI_EVENT_STA_CONNECTED):
 				// WiFi has connected to the HUB, but does not yet have DHCP address.
 				event_connect_sta = (wifi_event_sta_connected_t*) event_data;
-				char ssid[9];
+				char ssid[32];
 				memcpy (ssid, event_data, event_connect_sta->ssid_len );
 				ssid[event_connect_sta->ssid_len] = '\0';
 				ESP_LOGI(TAG, "CONNECTED to HUB: ssid=%s,  channel=%d", ssid,

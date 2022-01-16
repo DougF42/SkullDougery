@@ -31,6 +31,7 @@
 
 #define NVS_VERSION "1.0"
 
+#define STA_MODE
 
 
 static bool have_init_ok = false;
@@ -172,14 +173,24 @@ void RmNvs::initSingleAddr( int idx, const char *key, const char *addrStr) {
 void RmNvs::init_values() {
 
 	int idx=0;
+
+#ifdef  STA_MODE
+	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "Daisy-5_2GEXT");
+	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "iknowits42");
+	initSingleBool  (idx++, RMNVS_FORCE_STA_MODE, true);
+	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
+#else
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleBool  (idx++,   RMNVS_FORCE_STA_MODE, false);
+	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
+#endif
+	initSingleInt   (idx++, RMNVS_CMD_PORT,       100);
 	initSingleBool  (idx++, RMNVS_USE_DHCP,       true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
 	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");
-	initSingleInt   (idx++, RMNVS_CMD_PORT,       100);
+
 	initSingleAddr  (idx++, RMNVS_SRV_ADDR,       "192.168.4.4");  // Who I should log to
 	initSingleInt   (idx++, RMNVS_SRV_PORT,       3001);
 	initSingleAddr  (idx++, RMNVS_DNS_ADDR,       "8.8.8.8");
