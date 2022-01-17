@@ -336,7 +336,9 @@ void StepperDriver::runTask(void *param) {
 
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
+	ESP_LOGI(TAG, "NODD is registered");
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
+	ESP_LOGI(TAG, "ROTATE is registered");
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

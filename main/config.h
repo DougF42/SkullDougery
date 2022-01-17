@@ -36,15 +36,13 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define GPIO_BUTTON GPIO_NUM_0
 
 
-
 /* = = = = = = = = = == */
 
 // CORE assignments.
 // thew CORE where the switchboard and most drivers reside
-#define ASSIGN_SWITCHBOARD_CORE 0
-
-// Where we send data to DAC
+#define ASSIGN_SWITCHBOARD_CORE 1
 #define ASSIGN_MUSIC_CORE     0
+#define ASSIGN_STEPPER_CORE   1
 
 #define SEQUENCER_PANIC_BACKLOG 5
 
@@ -59,15 +57,15 @@ extern i2s_pin_config_t i2s_speaker_pins;
 
 // NOD - stepper
 #define NOD_PINA GPIO_NUM_23
-#define NOD_PINB GPIO_NUM_26
+#define NOD_PINB GPIO_NUM_22
 #define NOD_PINC GPIO_NUM_21
 #define NOD_PIND GPIO_NUM_19
 
 // ROTATE - stepper
-#define ROTATE_PINA GPIO_NUM_18
-#define ROTATE_PINB GPIO_NUM_17
-#define ROTATE_PINC GPIO_NUM_16
-#define ROTATE_PIND GPIO_NUM_4
+#define ROTATE_PINA GPIO_NUM_17
+#define ROTATE_PINB GPIO_NUM_16
+#define ROTATE_PINC GPIO_NUM_4
+#define ROTATE_PIND GPIO_NUM_15
 
 // Paramters for the LED driver.
 #define PIN_LEFT_EYE     27

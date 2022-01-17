@@ -177,7 +177,13 @@ void CmdDecoder::help() {
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
-	postResponse(" set  key value (see show command output)", RESPONSE_OK);
+	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
+	postResponse(" nod(d) or rot(ate) commands:",RESPONSE_MORE);
+	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
+	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
+	postResponse("   Set: Home, Lower, Upper, Ramp",  RESPONSE_MORE);
+	postResponse("   Rotate: Absolute, Relative, Home, Lower, Upper",  RESPONSE_MORE);
+	postResponse("  ",RESPONSE_OK);
 }
 
 

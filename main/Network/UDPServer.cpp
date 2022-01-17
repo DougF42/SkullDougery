@@ -159,7 +159,7 @@ void UDPServer::postResponse(const char *respTxt, responseStatus_t respcode) {
 	strncpy(tmpbuf, respTxt, sizeof(tmpbuf));
 	strncat(tmpbuf, "\n", sizeof(tmpbuf)-1);
 
-	ESP_LOGD(TAG, "POST RESPONSE: %s", tmpbuf);
+	//ESP_LOGD(TAG, "POST RESPONSE: %s", tmpbuf);
 	int err = sendto (sock, tmpbuf, strlen(tmpbuf), 0, (struct sockaddr*) &source_addr,
 			sizeof(source_addr) );
 
