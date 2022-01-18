@@ -15,6 +15,7 @@
 #include "Arduino.h"
 #include "string.h"
 #include "StepperMotorController.h"
+#include "climits"
 
 //--- Globals ----------------------------------------------
 
@@ -85,6 +86,7 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
 // to call 'Run' again.
 //=========================================================
 unsigned long  StepperMotorController::GetTimeToNextStep   () {
+	if (MotorState != RUNNING) return(ULONG_MAX);
 	return (NextStepMicros);
 }
 
@@ -490,12 +492,12 @@ void StepperMotorController::BlinkLED()
   }
 }
 
-#ifdef DONTUSETHIS
+
 //========================================================
 //  ExecuteCommand
 //========================================================
 
-char * StepperMotorController::ExecuteCommand(char *packet)
+const char * StepperMotorController::ExecuteCommand(const char *packet)
 {
   char  command[3];
   int   ramp, velocity;
@@ -536,7 +538,7 @@ char * StepperMotorController::ExecuteCommand(char *packet)
   {
     // Check for value
     if (strlen(packet) < 3)
-      return "Missing limit value";
+      return "E:Missing limit value";
 
     limit = strtol(packet+2, NULL, 10);
 
@@ -553,7 +555,7 @@ char * StepperMotorController::ExecuteCommand(char *packet)
   {
     // Check for value
     if (strlen(packet) != 3)
-      return "Missing ramp value 0-9";
+      return "E:Missing ramp value 0-9";
 
     ramp = atoi(packet+2);
 
@@ -575,7 +577,7 @@ char * StepperMotorController::ExecuteCommand(char *packet)
   {
     // Rotate command must be at least 7 chars
     if (strlen(packet) < 7)
-      return "Bad command";
+      return "E:Bad command";
 
     // Parse max velocity and target/numSteps
     char velString[5];  // Velocity is 4-chars 0001..9999
@@ -608,8 +610,8 @@ char * StepperMotorController::ExecuteCommand(char *packet)
   else if (strcmp(command, "BL") == 0)
     BlinkLED();
   else
-    return "Unknown command";
+    return "E:Unknown command";
 
   return "";
 }
-#endif
+

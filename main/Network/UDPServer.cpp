@@ -153,19 +153,35 @@ void UDPServer::startListenTask(void *param)
  *       describes the nature of the error.
  *
  */
-void UDPServer::postResponse(const char *respTxt, responseStatus_t respcode) {
+void UDPServer::postResponse (const char *respTxt, responseStatus_t respcode)
+{
 	char tmpbuf[128];
-	tmpbuf[0]='\0';
-	strncpy(tmpbuf, respTxt, sizeof(tmpbuf));
-	strncat(tmpbuf, "\n", sizeof(tmpbuf)-1);
+	int txtLen=strlen(respTxt)+2;
+	if (txtLen >= sizeof(tmpbuf)) {
+		ESP_LOGE(TAG, "postResponse: text is %d bytes - max is %ud", txtLen, sizeof(tmpbuf));
+		return;
+	}
+
+	tmpbuf[0] = '\0';
+	strcpy (tmpbuf, respTxt );
+	strcat (tmpbuf, "\n");
+
 
 	//ESP_LOGD(TAG, "POST RESPONSE: %s", tmpbuf);
-	int err = sendto (sock, tmpbuf, strlen(tmpbuf), 0, (struct sockaddr*) &source_addr,
-			sizeof(source_addr) );
-
-	if (err < 0)
+	int err = 0;
+	while (err <= 0)
 	{
-		ESP_LOGE(TAG, "Error occurred while trying to send a reply!  errno=%d", errno );
+		err = sendto (sock, tmpbuf, txtLen, 0,
+				(struct sockaddr*) &source_addr, sizeof(source_addr) );
+		vTaskDelay(1); // Allow wifi to run
 
+		if (err < 0)
+		{
+			ESP_LOGE(TAG,
+					"Error occurred while trying to send %d byte reply!  errno=%d (%s)",
+					txtLen, errno, strerror(errno) );
+			vTaskDelay(1000);
+			break;
+		}
 	}
 }

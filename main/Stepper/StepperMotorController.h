@@ -295,7 +295,7 @@ class StepperMotorController
     void           BlinkLED            ();                                      // Blink the onboard LED to indicate identification
     unsigned long  GetTimeToNextStep   ();                                      // How long before the next step...
 
-    char *         ExecuteCommand      (char *command);                         // Execute a stepper motor function by string command (see notes above)
+    const char *   ExecuteCommand      (const char *command);                         // Execute a stepper motor function by string command (see notes above)
 };
 
 #endif

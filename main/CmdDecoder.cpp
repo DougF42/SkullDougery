@@ -148,8 +148,6 @@ void CmdDecoder::parseCommand ()
  * If there is an error, we send a syntax error.
  * return value is the requested integer, or BAD_NUMBER
  */
-
-
 int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 	if (tokens[tokNo]==NULL) {
 		ESP_LOGD(TAG, "getIntArg: Missing Argument!");
@@ -251,7 +249,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 //	ESP_LOGD(TAG, "disspatchCommand - have %d arguments", tokCount);
 //	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
 
-	int val;
+	long int val;
 	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
 
@@ -263,69 +261,79 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("PAUSE")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("RUN")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("STOP")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("jaw" ))
 	{
-		val = getIntArg (1, tokens, 0, 1000 );
-		ESP_LOGD(TAG, "Dispatch - jaw=%d", val );
-		if (val == BAD_NUMBER)
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
 		{
 			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
 		}
 		else
 		{
+			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
 			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, 0 );
+			EVENT_ACTION_SETVALUE, val, 0, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
-		ESP_LOGD(TAG, "Dispatch - EYE" );
-		val = getIntArg (1, tokens, 0, 1000 );
-		if (val == BAD_NUMBER)
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
 		{
 			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
 		}
 		else
 		{
-			ESP_LOGD(TAG, "Dispatch - EYE=%d", val );
+			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
 			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, val );
+			EVENT_ACTION_SETVALUE, val, val, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
-	else if (ISCMD("set")) // any of the SET commands
+	else if (ISCMD("set" )) // any of the SET commands
 	{
-		setCommands( tokCount, tokens);
+		setCommands (tokCount, tokens );
 	}
-	else if (ISCMD("NOD")) // Any of the NOD commands
+	else if (ISCMD("NOD" )) // Any of the NOD commands
 	{
-		stepperCommands(tokCount, tokens);
+		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+		{
+			postResponse ("Missing Argument for NOD command",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			stepperCommands (tokCount, tokens );
+		}
 	}
-	else if (ISCMD("ROT")) // Any of the ROTate commands
-	{
-		stepperCommands(tokCount, tokens);
-	}
+	else if (ISCMD("ROT" )) // Any of the ROTate commands
+		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+		{
+			postResponse ("Missing Argument for NOD command",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			stepperCommands (tokCount, tokens );
+		}
 	else
 	{
-		// TODO: UNKNOWN COMMAND
-		ESP_LOGD(TAG, "Dispatch - unknown command");
+		ESP_LOGD(TAG, "Dispatch - unknown command" );
 		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
 	return;
@@ -366,12 +374,13 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 {
 	int retVal = 0;
 
-	if (tokCount < 3)
+	if (! requireArgs( tokCount, tokens, 3, NULL, NULL ))
 	{
 		postResponse ("Missing paramter name or value in SET commnad",
 				RESPONSE_UNKNOWN );
 		return;
 	}
+
 
 	if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
 	{
@@ -395,13 +404,26 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 	else if (ISARG(1, RMNVS_IP ))
 	{
 		retVal = RmNvs::set_addr_as_string (RMNVS_IP, tokens[2] );
+		if (retVal==BAD_NUMBER) {
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
 		postResponse ("OK", RESPONSE_OK );
+		}
 	}
 
 	else if (ISARG(1, RMNVS_NETMASK ))
 	{
 		retVal = RmNvs::set_addr_as_string (RMNVS_NETMASK, tokens[2] );
-		postResponse ("OK", RESPONSE_OK );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse ("OK", RESPONSE_OK );
+		}
 	}
 
 	else if (ISARG(1, RMNVS_CMD_PORT ))
@@ -409,13 +431,20 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		uint32_t val = strtol (tokens[2], NULL, 0 );
 		if ((val <= 0) || (val >= 65535))
 		{
-			postResponse ("Port number out of range - must be between 1 and 65535",
+			postResponse (
+					"Port number out of range - must be between 1 and 65535",
 					RESPONSE_COMMAND_ERRR );
-			return;
 		}
 		else
 		{
 			retVal = RmNvs::set_int (RMNVS_CMD_PORT, val );
+			if (retVal==BAD_NUMBER) {
+				postResponse("Bad number", RESPONSE_SYNTAX);
+			}
+			else
+			{
+				postResponse("OK", RESPONSE_OK);
+			}
 		}
 	}
 
@@ -424,6 +453,14 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		char c = tolower (tokens[2][1] );
 		bool apstate = (c == '1') || (c == 'y') || (c == 't');
 		retVal = RmNvs::set_bool (RMNVS_USE_DHCP, apstate );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a boolean or bad value", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
 	}
 
 	else
@@ -431,17 +468,6 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		ESP_LOGD(TAG, "setCommands - unknown paramter name" );
 		postResponse ("Unknown parameter name in SET command",
 				RESPONSE_UNKNOWN );
-		return;
-	}
-
-	if (retVal == BAD_NUMBER)
-	{
-		postResponse ("Bad value or parameter in set command",
-				RESPONSE_UNKNOWN );
-	}
-	else
-	{
-		postResponse ("OK", RESPONSE_OK );
 	}
 
 	return;
@@ -452,176 +478,30 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
  * This handles any of the 'stepper' commands - either the
  * 'Rot'ational or 'Nodd' commands or requests.
  *
- * @param required - the number of tokens required
- * @param tokenCount - the number of tokens in the command
+ * @param required - the number of tokens required.
+ * @param tokenCount - the number of tokens in the command.
  *
  */
-// TODO: HOW DO WE GET A RESPONSE BACK TO THE CALLER?????
 void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 {
 	TASK_NAME destination = TASK_NAME::TEST;
 	Message *msg = nullptr;
-	long int posit = 0;
-	long int rate = 0;
 
+	// Which driver?
 	if (ISCMD("ROT" ))
 		destination = TASK_NAME::ROTATE;
 	else
 		destination = TASK_NAME::NODD;
 
-	if (ISSUBCMD("EN" ))   // Enable
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_ENABLE, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("DI" )) // Disable
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_DISABLE, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("SH" )) // Set Home .
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_SET_HOME, posit, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("SL" )) // Set Lower .
-	{
-		if (!requireArgs (tokCount, tokens, 3, &posit, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_SET_LOWER_LIMIT, posit, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("SU" )) // Set Upper
-	{
-		if (!requireArgs (tokCount, tokens, 3, &posit, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_SET_UPPER_LIMIT, posit, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("SR" )) // Set Ramp
-	{
-		if (!requireArgs (tokCount, tokens, 2, &posit, NULL )) return;
-		if ((posit < 0) || (posit > 9))
-		{
-			postResponse ("Bad Value", RESPONSE_COMMAND_ERRR );
-		}
-		else
-		{
-			msg = Message::future_Message (destination, senderTaskName,
-					EVENT_STEPPER_SET_RAMP, posit, 0 );
-			SwitchBoard::send (msg );
-			postResponse ("OK", RESPONSE_OK );
-		}
-	}
-	else if (ISSUBCMD("RA" ))  // Rotate Abs ...
-	{
-		if (!requireArgs (tokCount, tokens, 4, &posit, &rate )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GOABS, posit, rate );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("RR" ))  // Rotate Rel ...
-	{
-		if (!requireArgs (tokCount, tokens, 4, &posit, &rate )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GOREL, posit, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("RH" )) // Rotate Home
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GOHOME, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("RL" )) // Rotate Lower
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GOLOWER, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("RU" )) // Rotate Upper
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GOUPPER, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("ES" )) // E-STOP
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_ESTOP, 0, 0 );
-		SwitchBoard::send (msg );
-		postResponse ("OK", RESPONSE_OK );
-	}
-	else if (ISSUBCMD("GA" )) // Get Abs position
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GET_ABS_POS, 0, 0 );
-		SwitchBoard::send (msg );
-		// expect response thru message callback
-	}
-	else if (ISSUBCMD("GR" )) // Get Rel Position
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GET_REL_POS, 0, 0 );
-		SwitchBoard::send (msg );
-		// expect response thru message callback
-	}
-	else if (ISSUBCMD("GL" )) // Get Lower Limit
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GET_LOW_LIMIT, 0, 0 );
-		SwitchBoard::send (msg );
-		// expect response thru message callback
-	}
-	else if (ISSUBCMD("GU" )) // get Upper Limit
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GET_UPR_LIMIT, 0, 0 );
-		SwitchBoard::send (msg );
-		// expect response thru message callback
-	}
-	else if (ISSUBCMD("GT" )) // Geet remaining time
-	{
-		if (!requireArgs (tokCount, tokens, 2, NULL, NULL )) return;
-		msg = Message::future_Message (destination, senderTaskName,
-				EVENT_STEPPER_GET_REM_TIME, 0, 0 );
-		SwitchBoard::send (msg );
-		// expect response thru message callback
-	}
-	else
-	{
-		postResponse ("Unknown command", RESPONSE_SYNTAX );
-	}
+   // Let the 'execute' function handle the specific command.
+	msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
+	SwitchBoard::send(msg);
 	return;
 }
 
 
 /**
- * This accepts messages from the various devices, and translates them into
+ * This accepts response messages from the various devices, and translates them into
  * a text response, which is then sent out via the 'postResponse' routine which
  * is provided by the channel.
  *
@@ -631,7 +511,7 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
  * completely dealt with.
  *
  */
-void CmdDecoder::callBack(const Message *msg)
+void CmdDecoder::callBack (const Message *msg)
 {
 	xSemaphoreTake(respBufSempahore, (TickType_t ) 10 );
 	if ((msg->response == TASK_NAME::NODD)
@@ -639,24 +519,23 @@ void CmdDecoder::callBack(const Message *msg)
 	{
 		switch (msg->event)
 		{
-			case (EVENT_STEPPER_GET_ABS_POS):
-			case (EVENT_STEPPER_GET_REL_POS):
-			case (EVENT_STEPPER_GET_LOW_LIMIT):
-			case (EVENT_STEPPER_GET_UPR_LIMIT):
-				snprintf (respBuf, sizeof(respBuf), " Position is %ld",
-						msg->value );
-				postResponse (respBuf, RESPONSE_OK );
-				break;
-
-			case (EVENT_STEPPER_GET_REM_TIME):
-				snprintf (respBuf, sizeof(respBuf), "Time is %ld", msg->value );
-				postResponse (respBuf, RESPONSE_OK );
+			case (EVENT_STEPPER_EXECUTE_CMD):
+				if (strlen (msg->text ) < 1)
+				{
+					// Assume a good response
+					postResponse (respBuf, RESPONSE_OK );
+				}
+				else
+				{
+					postResponse (msg->text, RESPONSE_OK );
+				}
 				break;
 
 			default:
-				snprintf(respBuf, sizeof(respBuf), "Unkown response from NODD or ROTATE. Event was %d, value %ld",
-						msg->event, msg->value);
-				postResponse(respBuf, RESPONSE_OK);
+				snprintf (respBuf, sizeof(respBuf),
+						"Unkown response to command. Source:%d  Event:%d, value:%ld text:%s.",
+						TASK_IDX(msg->response), msg->event, msg->value, msg->text );
+				postResponse (respBuf, RESPONSE_OK );
 				break;
 		}
 

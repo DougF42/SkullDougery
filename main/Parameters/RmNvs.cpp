@@ -610,7 +610,7 @@ int RmNvs::set_addr (const char *key, in_addr_t value) {
  * network-byte order value (see inet_aton) and stores it
  * @oaram key - the paramter to set
  * @param value - pointer to the string to set.
- * @return BAD_NUMBER if any error
+ * @return the ip address as a single value, or BAD_NUMBER if any error.
  */
 int RmNvs::set_addr_as_string (const char *key, const char *value) {
 	int idx = findKey (key);

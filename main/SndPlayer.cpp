@@ -303,7 +303,7 @@ void SndPlayer::playMusic (void *output_ptr)
 						eye_avg = map(eye_avg, 0, 3200, 0, 1000);
 						msg = Message::future_Message (TASK_NAME::EYES,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									eye_avg * 10, eye_avg * 10 );
+									eye_avg * 10, eye_avg * 10, nullptr );
 							SwitchBoard::send (msg );
 #endif
 						eye_avg = 0;
@@ -322,7 +322,7 @@ void SndPlayer::playMusic (void *output_ptr)
 						jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
 						msg = Message::future_Message (TASK_NAME::JAW,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									jaw_avg, 0 );
+									jaw_avg, 0, nullptr );
 						SwitchBoard::send (msg );
 
 #endif
@@ -344,11 +344,11 @@ void SndPlayer::playMusic (void *output_ptr)
 
 		msg = Message::future_Message (TASK_NAME::EYES,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-											0, 0 );
+											0, 0, nullptr );
 		SwitchBoard::send (msg );
 		msg = Message::future_Message (TASK_NAME::JAW,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-											0, 0 );
+											0, 0, nullptr );
 		SwitchBoard::send(msg);
 
 		ESP_LOGI("main", "Finished playing file\n" );
@@ -368,27 +368,27 @@ void SndPlayer::testEyesAndJaws ()
 	Message *msg;
 
 	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 255 );
+	EVENT_ACTION_SETVALUE, 0, 255 , nullptr);
 	SwitchBoard::send (msg ); // Left Eye
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0 );
+	EVENT_ACTION_SETVALUE, 0, 0, nullptr);
 	SwitchBoard::send (msg ); // Open JAW
 
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
 	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 255, 0 );
+	EVENT_ACTION_SETVALUE, 255, 0, nullptr );
 	SwitchBoard::send (msg );  // Right EYE
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 1000, 0 );
+	EVENT_ACTION_SETVALUE, 1000, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
 	ESP_LOGD(TAG, "NOW TO BEGIN..." );
 	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0 );
+	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );
 	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0 );
+	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 
 }

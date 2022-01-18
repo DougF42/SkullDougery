@@ -11,17 +11,13 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "string.h"
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
 
+
 static const char *TAG="STEPPER DRIVER::";
-
-#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);\
-		esp_timer_stop (myTimer );
-
-#define STARTCLOCK xSemaphoreGive(mylock);\
-		clockCallback (this );
 
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
@@ -36,249 +32,48 @@ StepperDriver::~StepperDriver ()
 	// Auto-generated destructor stub
 }
 
+
+#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);\
+		esp_timer_stop (myTimer );
+
+#define STARTCLOCK xSemaphoreGive(mylock);\
+		clockCallback (target );
+
 /**
  * This is how messages are delivered to us.
  *
- * This just does a 'triage', and calls the appropriate handler
- * for the given destination
  * If the message contains a command to a StepperMotorController,
- * we stop the timer, do the command, then call the timer interrupt
- * ( which will re-start the timer)
+ * we stop the timer, execute the command, then call the timer interrupt
+ * ( which will re-start the timer).
  */
 void StepperDriver::callBack (const Message *msg)
 {
+	STOPCLOCK
+	StepperMotorController *target=nullptr;
+	Message *resp=nullptr;
 	switch (msg->destination)
 	{
 		case (TASK_NAME::NODD):
-			handleNodCommands (msg );
+			target=nodControl;
 			break;
 
 		case (TASK_NAME::ROTATE):
-			handleRotCommands (msg );
+			target = rotControl;
 			break;
 
 		default:
-			ESP_LOGE(TAG,
-					"Unknown destination %d delivered to StepperDriver message callback!!",
-					TASK_IDX(msg->destination ));
-			break;
+			ESP_LOGE(TAG, "callback - panic - this cant happen - CALL THE STUPID PROGRAMMER");
+			return;
 	}
+
+	const char *res=target->ExecuteCommand(msg->text);
+	resp=Message::future_Message(msg->response, msg->destination, msg->event, 0, 0, res);
+	SwitchBoard::send(resp);
+	STARTCLOCK
 }
 
 
 
-void StepperDriver::handleNodCommands (const Message *msg)
-{
-	Message *respMsg;
-	switch (msg->event)
-	{
-		case (EVENT_ACTION_SETVALUE):
-			// This causes us to go to the given position, at the given rate.
-			STOPCLOCK
-			nodControl->RotateAbsolute (msg->value, msg->rate );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_HOME):
-			STOPCLOCK
-			nodControl->SetHomePosition ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_LOWER_LIMIT):
-			STOPCLOCK
-			nodControl->SetLowerLimit (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_UPPER_LIMIT):
-			STOPCLOCK
-			nodControl->SetUpperLimit (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_RAMP):
-			STOPCLOCK
-			nodControl->SetRamp (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOHOME):
-			STOPCLOCK
-			nodControl->RotateToHome ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOUPPER):
-			STOPCLOCK
-			nodControl->RotateToUpperLimit ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOLOWER):
-			STOPCLOCK
-			nodControl->RotateToLowerLimit ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_ESTOP):
-			STOPCLOCK
-			nodControl->EStop ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_ENABLE):
-			STOPCLOCK
-			nodControl->Enable ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_DISABLE):
-			STOPCLOCK
-			nodControl->Disable ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GET_ABS_POS):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::NODD,
-			EVENT_STEPPER_GET_ABS_POS, nodControl->GetAbsolutePosition (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_REL_POS):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::NODD,
-			EVENT_STEPPER_GET_REL_POS, nodControl->GetRelativePosition (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_LOW_LIMIT):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::NODD,
-			EVENT_STEPPER_GET_LOW_LIMIT, nodControl->GetLowerLimit (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_UPR_LIMIT):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::NODD,
-			EVENT_STEPPER_GET_UPR_LIMIT, nodControl->GetUpperLimit (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_REM_TIME):
-			break;
-
-	}
-}
-
-
-
-void StepperDriver::handleRotCommands (const Message *msg)
-{
-	Message *respMsg;
-	switch (msg->event)
-	{
-		case (EVENT_ACTION_SETVALUE):
-			// This causes us to go to the given position, at the given rate.
-			STOPCLOCK
-			rotControl->RotateAbsolute (msg->value, msg->rate );
-			STARTCLOCK
-			;
-			break;
-
-		case (EVENT_STEPPER_SET_HOME):
-			STOPCLOCK
-			rotControl->SetHomePosition ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_LOWER_LIMIT):
-			STOPCLOCK
-			rotControl->SetLowerLimit (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_UPPER_LIMIT):
-			STOPCLOCK
-			rotControl->SetUpperLimit (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_SET_RAMP):
-			STOPCLOCK
-			rotControl->SetRamp (msg->value );
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOHOME):
-			STOPCLOCK
-			rotControl->RotateToHome ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOUPPER):
-			STOPCLOCK
-			rotControl->RotateToUpperLimit ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GOLOWER):
-			STOPCLOCK
-			rotControl->RotateToLowerLimit ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_ESTOP):
-			STOPCLOCK
-			rotControl->EStop ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_ENABLE):
-			STOPCLOCK
-			rotControl->Enable ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_DISABLE):
-			STOPCLOCK
-			rotControl->Disable ();
-			STARTCLOCK
-			break;
-
-		case (EVENT_STEPPER_GET_ABS_POS):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::ROTATE,
-			EVENT_STEPPER_GET_ABS_POS, rotControl->GetAbsolutePosition (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_REL_POS):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::ROTATE,
-			EVENT_STEPPER_GET_REL_POS, rotControl->GetRelativePosition (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_LOW_LIMIT):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::ROTATE,
-			EVENT_STEPPER_GET_LOW_LIMIT, rotControl->GetLowerLimit (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_UPR_LIMIT):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::ROTATE,
-			EVENT_STEPPER_GET_UPR_LIMIT, rotControl->GetUpperLimit (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		case (EVENT_STEPPER_GET_REM_TIME):
-			respMsg = Message::future_Message (msg->response, TASK_NAME::ROTATE,
-			EVENT_STEPPER_GET_REM_TIME, rotControl->GetRemainingTime (), 0 );
-			SwitchBoard::send (respMsg );
-			break;
-
-		default:
-			ESP_LOGE(TAG, "UNKNWON ROTATE EVENT NUMBER %d", msg->event );
-			break;
-	}
-}
 
 
 /**
@@ -302,9 +97,9 @@ void StepperDriver::clockCallback(void *arg) {
 	xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
 	me->nodControl->Run();
 	me->rotControl->Run();
-	int64_t nextNodTime=me->nodControl->GetTimeToNextStep();
-	int64_t	nextRotTime=me->rotControl->GetTimeToNextStep();
-	int64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
+	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
+	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
 	xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
 	esp_timer_start_once(me->myTimer, nextTime);
 }

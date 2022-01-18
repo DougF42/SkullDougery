@@ -21,7 +21,7 @@
 #define MAIN_CMDDECODER_H_
 
 // Max length of a command line
-#define CMD_BUF_MAX_LEN 80
+#define CMD_BUF_MAX_LEN 160
 #define MAX_ARGUMENT_COUNT 10
 /**
  * 'more' means we need more data. 'reply' means there

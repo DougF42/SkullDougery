@@ -65,13 +65,14 @@ public:
 
 	// This message to send simple messages, with no response
 	static Message *future_Message(TASK_NAME target, TASK_NAME from,
-			int _event, long int val, long int rate);
+			int _event, long int val, long int rate, const char *txt=nullptr);
 
-	int event;            // A 'valid' event for the device. If the device receives
-	                      // an invalid event, ignore it. If this is a response, this
-	                      // is the message type of the requesting message.
-	long int value;            //  The value we want to set.
-	long int rate;             // An indication of how fast this should happen.
+	int event;           // A 'valid' event for the device. If the device receives
+	                     // an invalid event, ignore it. If this is a response, this
+	                     // is the message type of the requesting message.
+	long int value;      //  The value we want to set (as defined by the event)
+	long int rate;       // An indication of how fast this should happen.
+	char text[64];       // Up to 64 bytes null-terminated text.
 
 protected:
 	Message ();
