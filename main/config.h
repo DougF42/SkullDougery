@@ -59,15 +59,15 @@ extern i2s_pin_config_t i2s_speaker_pins;
 
 // NOD - stepper
 #define NOD_PINA GPIO_NUM_23
-#define NOD_PINB GPIO_NUM_26
-#define NOD_PINC GPIO_NUM_21
-#define NOD_PIND GPIO_NUM_19
+#define NOD_PINB GPIO_NUM_22
+#define NOD_PINC GPIO_NUM_19
+#define NOD_PIND GPIO_NUM_21
 
 // ROTATE - stepper
-#define ROTATE_PINA GPIO_NUM_18
-#define ROTATE_PINB GPIO_NUM_17
-#define ROTATE_PINC GPIO_NUM_16
-#define ROTATE_PIND GPIO_NUM_4
+#define ROTATE_PINA GPIO_NUM_17
+#define ROTATE_PINB GPIO_NUM_16
+#define ROTATE_PINC GPIO_NUM_4
+#define ROTATE_PIND GPIO_NUM_15
 
 // Paramters for the LED driver.
 #define PIN_LEFT_EYE     27
