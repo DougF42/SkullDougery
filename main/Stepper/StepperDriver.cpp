@@ -37,10 +37,10 @@ StepperDriver::~StepperDriver ()
 		esp_timer_stop (myTimer );
 
 #define STARTCLOCK xSemaphoreGive(mylock);\
-		clockCallback (target );
+		clockCallback (this );
 
 /**
- * This is how messages are delivered to us.
+ * This is how messages (commands) are delivered to us.
  *
  * If the message contains a command to a StepperMotorController,
  * we stop the timer, execute the command, then call the timer interrupt
@@ -50,7 +50,7 @@ void StepperDriver::callBack (const Message *msg)
 {
 	STOPCLOCK
 	StepperMotorController *target=nullptr;
-	Message *resp=nullptr;
+	Message *respMsg=nullptr;
 	switch (msg->destination)
 	{
 		case (TASK_NAME::NODD):
@@ -66,9 +66,10 @@ void StepperDriver::callBack (const Message *msg)
 			return;
 	}
 
-	const char *res=target->ExecuteCommand(msg->text);
-	resp=Message::future_Message(msg->response, msg->destination, msg->event, 0, 0, res);
-	SwitchBoard::send(resp);
+
+	const char *respText=target->ExecuteCommand(msg->text);
+	respMsg=Message::future_Message(msg->response, msg->destination, msg->event, 0, 0, respText);
+	SwitchBoard::send(respMsg);
 	STARTCLOCK
 }
 
@@ -91,16 +92,15 @@ void StepperDriver::callBack (const Message *msg)
  * We will start it
  */
 void StepperDriver::clockCallback(void *arg) {
-	static BaseType_t xHigherPriorityTaskWoken=pdFALSE;
-
 	StepperDriver *me= (StepperDriver *)arg;
-	xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
+
+	xSemaphoreTake(me->mylock, 3);
 	me->nodControl->Run();
 	me->rotControl->Run();
 	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
 	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
 	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
+	xSemaphoreGive(me->mylock);
 	esp_timer_start_once(me->myTimer, nextTime);
 }
 
@@ -122,18 +122,20 @@ void StepperDriver::runTask(void *param) {
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};
 	timer_cfg.callback=&me->clockCallback;
+	timer_cfg.arg = param;
 	timer_cfg.name = "stepperTimer";
-	timer_cfg.arg = me;
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
-
-	clockCallback(me);   // First time thru the clock callback.
 
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
 	ESP_LOGI(TAG, "NODD is registered");
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
 	ESP_LOGI(TAG, "ROTATE is registered");
+
+	clockCallback(param);   // Force first time thru the clock callback.
+
+
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

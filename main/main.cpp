@@ -63,6 +63,14 @@ void app_main ()
 
 	RmNvs::dumpTable ();
 
+	TaskHandle_t switchboardHandle;
+
+// Start Switchboard first
+	ESP_LOGD(TAG, "About to start Switchboard!" );
+	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
+			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
+	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
+
 #ifdef ENABLE_WIFI
 	WiFiHub wifi; // Define wifi instance
 
@@ -82,13 +90,6 @@ void app_main ()
 //	ESP_LOGD(TAG, "....SLEEP....");
 //	vTaskDelay(10000); // Sleep forever
 //}
-	TaskHandle_t switchboardHandle;
-
-// Start Switchboard first
-	ESP_LOGD(TAG, "About to start Switchboard!" );
-	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
-			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
-	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
 	SndPlayer player ("Player" );
 

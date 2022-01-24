@@ -39,6 +39,8 @@ static const char *TAG="CmdDecoder::";
 CmdDecoder::CmdDecoder (TASK_NAME myId):DeviceDef("Cmd Decoder") {
 	respBufSempahore=xSemaphoreCreateBinaryStatic(&respBufSemaphoreBuffer);
 	senderTaskName=myId;
+	ESP_LOGD(TAG, "SENDER TASK IS %d", TASK_IDX(senderTaskName));
+	SwitchBoard::registerDriver(myId, this);
 	flush();
 }
 
@@ -485,7 +487,7 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 {
 	TASK_NAME destination = TASK_NAME::TEST;
-	Message *msg = nullptr;
+	Message *respMsg = nullptr;
 
 	// Which driver?
 	if (ISCMD("ROT" ))
@@ -494,16 +496,21 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 		destination = TASK_NAME::NODD;
 
    // Let the 'execute' function handle the specific command.
-	msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
-	SwitchBoard::send(msg);
+	//ESP_LOGD(TAG, "stepperCommands: destination is %d, senderTask is %d", TASK_IDX(destination), TASK_IDX(senderTaskName));
+	respMsg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
+	SwitchBoard::send(respMsg);
 	return;
 }
 
 
 /**
- * This accepts response messages from the various devices, and translates them into
- * a text response, which is then sent out via the 'postResponse' routine which
- * is provided by the channel.
+ * After a device processes a command from the command decoder, it may respond back
+ * with a text message indicating its status. (At this time, only the stepper driver
+ * does this).
+ *
+ * This routine in turn takes the callback message, and formats it for the 'postResponse'
+ * method of our derived class, so that the response will go back up the channel to
+ * whoever (or whatever) originated the command.
  *
  * To prevent various overrun problems (such as multiple messages from different
  * tasks arriving back-to-back), we use a semaphore to prevent
@@ -517,13 +524,14 @@ void CmdDecoder::callBack (const Message *msg)
 	if ((msg->response == TASK_NAME::NODD)
 			|| (msg->response == TASK_NAME::ROTATE))
 	{
+
 		switch (msg->event)
 		{
 			case (EVENT_STEPPER_EXECUTE_CMD):
 				if (strlen (msg->text ) < 1)
 				{
 					// Assume a good response
-					postResponse (respBuf, RESPONSE_OK );
+					postResponse ("OK", RESPONSE_OK );
 				}
 				else
 				{
@@ -533,8 +541,8 @@ void CmdDecoder::callBack (const Message *msg)
 
 			default:
 				snprintf (respBuf, sizeof(respBuf),
-						"Unkown response to command. Source:%d  Event:%d, value:%ld text:%s.",
-						TASK_IDX(msg->response), msg->event, msg->value, msg->text );
+						"Unkown response to command. Source:%3d  Event:%4d.",
+						TASK_IDX(msg->response), msg->event);
 				postResponse (respBuf, RESPONSE_OK );
 				break;
 		}

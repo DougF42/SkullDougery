@@ -72,7 +72,7 @@ public:
 	                     // is the message type of the requesting message.
 	long int value;      //  The value we want to set (as defined by the event)
 	long int rate;       // An indication of how fast this should happen.
-	char text[64];       // Up to 64 bytes null-terminated text.
+	char text[128];       // Up to 64 bytes null-terminated text.
 
 protected:
 	Message ();

@@ -20,7 +20,7 @@ Message::Message ()
 	response=TASK_NAME::IDLER;
 	value = 0L;
 	rate  = 0L;
-
+	bzero(text, sizeof(text));
 }
 
 
@@ -36,16 +36,16 @@ Message::~Message ()
 Message::Message (const Message &oldObj)
 {
 	destination = oldObj.destination;
-	event = oldObj.event;
-	response = oldObj.response;
-	value = oldObj.value;
-	rate = oldObj.rate;
+	event       = oldObj.event;
+	response    = oldObj.response;
+	value       = oldObj.value;
+	rate        = oldObj.rate;
+	memcpy(text, oldObj.text, sizeof(text));
 }
 
 /**
  * Factory to create a message to be executed at a particular
  * time in the future.
- * @param abstime - the time when this should trigger
  * @param target  - what driver should handle this?
  * @param from    - what task isthis from?
  * @param event   - What event?
@@ -60,7 +60,7 @@ Message *Message::future_Message( TASK_NAME _target,
 	Message *m=new Message();
 	m->event = _event;
 	m->destination= _target;
-	m->response = TASK_NAME::IDLER;
+	m->response = _from;
 	m->value = _value;
 	m->rate  = _rate;
 	if (txt == nullptr)
