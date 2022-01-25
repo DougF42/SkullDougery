@@ -70,8 +70,6 @@ void StepperDriver::callBack (const Message *msg)
 	const char *respText=target->ExecuteCommand(msg->text);
 	ESP_LOGD(TAG, "Response:%s", respText);
 	respMsg=Message::future_Message(msg->response, msg->destination, msg->event, 0L, 0L, respText);
-	ESP_LOGD(TAG, "Response still is :%s", respText);
-	ESP_LOGD(TAG, "...TEXT is %s", respMsg->text);
 	SwitchBoard::send(respMsg);
 	STARTCLOCK
 }
