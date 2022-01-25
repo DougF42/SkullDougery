@@ -52,13 +52,14 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   digitalWrite(pin2, LOW);
   digitalWrite(pin3, LOW);
   if (driverType==NON_DIGITAL)  digitalWrite(pin4, LOW);
+  digitalWrite(LEDPin, LOW);
 
   // If DIGITAL, start with motor disabled
   if (DriverType == DIGITAL)
     digitalWrite(EnablePin, HIGH);
 
 	// Set motor state and step position/timing
-	Homed             = false;
+  Homed             = false;
   MotorState        = DISABLED;
   StepIncrement     = 1L;
   AbsolutePosition  = 0L;
@@ -502,7 +503,7 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
   char  command[3];
   int   ramp, velocity;
   long  limit, targetOrNumSteps;
-  char  returnString[40];
+  static char  returnString[40];
 
   // Command string must be at least 2 chars
   if (strlen(packet) < 2) return "";

@@ -66,7 +66,7 @@ void digitalWrite(int pin, bool level) {
  */
 unsigned long micros() {
 	int64_t now=esp_timer_get_time();
-	long int res= now&0xFFFFFFFF; // Caution - loosing high bits
+	unsigned long int res= now&0xFFFFFFFF; // Caution - loosing high bits
 	return(res);
 }
 

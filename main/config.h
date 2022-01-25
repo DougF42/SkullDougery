@@ -54,6 +54,7 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define SOURCE_FILE_NAME "/fs/DaysMono.mp3"
 
 // PIN Definitions
+#define ESP_LED_PIN 2
 
 // NOD - stepper
 #define NOD_PINA GPIO_NUM_23

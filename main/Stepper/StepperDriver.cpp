@@ -68,7 +68,10 @@ void StepperDriver::callBack (const Message *msg)
 
 
 	const char *respText=target->ExecuteCommand(msg->text);
-	respMsg=Message::future_Message(msg->response, msg->destination, msg->event, 0, 0, respText);
+	ESP_LOGD(TAG, "Response:%s", respText);
+	respMsg=Message::future_Message(msg->response, msg->destination, msg->event, 0L, 0L, respText);
+	ESP_LOGD(TAG, "Response still is :%s", respText);
+	ESP_LOGD(TAG, "...TEXT is %s", respMsg->text);
 	SwitchBoard::send(respMsg);
 	STARTCLOCK
 }
@@ -93,15 +96,17 @@ void StepperDriver::callBack (const Message *msg)
  */
 void StepperDriver::clockCallback(void *arg) {
 	StepperDriver *me= (StepperDriver *)arg;
-
+//	uint64_t now= esp_timer_get_time();
 	xSemaphoreTake(me->mylock, 3);
+
 	me->nodControl->Run();
 	me->rotControl->Run();
-	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
-	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
-	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+//	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
+//	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
+//	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime-now:nextRotTime-now;
+
 	xSemaphoreGive(me->mylock);
-	esp_timer_start_once(me->myTimer, nextTime);
+//	esp_timer_start_once(me->myTimer, nextTime-now);
 }
 
 
@@ -116,8 +121,8 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->nodControl = new StepperMotorController(DIGITAL, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, 0);
-	me->rotControl = new StepperMotorController(NON_DIGITAL,ROTATE_PINA,ROTATE_PINB,ROTATE_PINC,ROTATE_PIND, 0);
+	me->nodControl = new StepperMotorController(DIGITAL, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, ESP_LED_PIN);
+	me->rotControl = new StepperMotorController(NON_DIGITAL,ROTATE_PINA,ROTATE_PINB,ROTATE_PINC,ROTATE_PIND, -1);
 
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};
@@ -133,7 +138,9 @@ void StepperDriver::runTask(void *param) {
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
 	ESP_LOGI(TAG, "ROTATE is registered");
 
-	clockCallback(param);   // Force first time thru the clock callback.
+	//clockCallback(param);   // Force first time thru the clock callback.
+	// esp_timer_start_once(me->myTimer, nextTime-now);
+	esp_timer_start_periodic(me->myTimer, 5000); // Max step rate 2000 steps per second.
 
 
 

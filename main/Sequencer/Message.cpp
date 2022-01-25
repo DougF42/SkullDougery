@@ -10,7 +10,7 @@
 #include "esp_log.h"
 #include "string.h"
 
-// static const char *TAG="MESSAGE";
+static const char *TAG="MESSAGE";
 
 Message::Message ()
 {
@@ -55,18 +55,24 @@ Message::Message (const Message &oldObj)
  *                  is copied into the message. Max length 64.
  *
  */
-Message *Message::future_Message( TASK_NAME _target,
-		TASK_NAME _from, int _event, long int _value, long int _rate, const char *txt) {
+Message *Message::future_Message( TASK_NAME _target,  TASK_NAME _from,
+		                          int _event,
+								  long int _value, long int _rate,
+								  const char *txt) {
+	if (txt!=nullptr) ESP_LOGD(TAG, "txt argument is %s", txt);
 	Message *m=new Message();
 	m->event = _event;
 	m->destination= _target;
 	m->response = _from;
 	m->value = _value;
 	m->rate  = _rate;
-	if (txt == nullptr)
+	if (txt == nullptr) {
 		bzero(m->text, sizeof(m->text));
+	}
 	else
+	{
 		strncpy(m->text, txt, sizeof(m->text));
-
+		m->text[sizeof(m->text)-1]='\0';
+	}
 	return(m);
 }
