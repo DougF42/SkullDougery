@@ -55,9 +55,6 @@ void UDPServer::startListenTask(void *param)
 	int addr_family = AF_INET;
 	int ip_protocol = 0;
 
-	// REGISTER AS A DEVICE (to receive responses!)
-	// SwitchBoard::registerDriver(TASK_NAME::UDP, me);
-
 	while (1)
 	{
 		struct sockaddr_in dest_addr;

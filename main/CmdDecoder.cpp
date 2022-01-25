@@ -39,7 +39,6 @@ static const char *TAG="CmdDecoder::";
 CmdDecoder::CmdDecoder (TASK_NAME myId):DeviceDef("Cmd Decoder") {
 	respBufSempahore=xSemaphoreCreateBinaryStatic(&respBufSemaphoreBuffer);
 	senderTaskName=myId;
-	ESP_LOGD(TAG, "SENDER TASK IS %d", TASK_IDX(senderTaskName));
 	SwitchBoard::registerDriver(myId, this);
 	flush();
 }
@@ -496,7 +495,6 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 		destination = TASK_NAME::NODD;
 
    // Let the 'execute' function handle the specific command.
-	//ESP_LOGD(TAG, "stepperCommands: destination is %d, senderTask is %d", TASK_IDX(destination), TASK_IDX(senderTaskName));
 	respMsg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
 	SwitchBoard::send(respMsg);
 	return;
