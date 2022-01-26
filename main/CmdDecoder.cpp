@@ -261,6 +261,11 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		RmNvs::commit();
 		postResponse("OK", RESPONSE_OK);
 
+	} else if (ISCMD("EL")) { // Not really a 'NOD', but it will get to the right place...
+		msg=Message::future_Message(TASK_NAME::NODD, senderTaskName, EVENT_GET_TIME, 0, 0, nullptr);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+
 	} else if (ISCMD("PAUSE")) {
 		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0, nullptr);
 		SwitchBoard::send(msg);

@@ -17,6 +17,7 @@
 
 
 #define EVENT_STEPPER_EXECUTE_CMD 101
+#define EVENT_GET_TIME            102
 
 
 class StepperDriver: public DeviceDef
