@@ -14,7 +14,7 @@
 #include "PwmDriver.h"
 #include "SndPlayer.h"
 #include "Network/WiFiHub.h"
-
+#include "Stepper/StepperDriver.h"
 #define ENABLE_PWM_DRIVER
 #define ENABLE_WIFI
 #include "audio/minimp3.h"
@@ -29,8 +29,7 @@ void app_main ();
 void app_main ()
 {
 	// Configure the 'RESET' button.
-	gpio_config_t io_conf =
-	{ };
+	gpio_config_t io_conf = { };
 	io_conf.intr_type = GPIO_INTR_DISABLE;
 	io_conf.mode = GPIO_MODE_INPUT;
 	//bit mask of the pins that you want to set,e.g.GPIO18/19
@@ -64,6 +63,14 @@ void app_main ()
 
 	RmNvs::dumpTable ();
 
+	TaskHandle_t switchboardHandle;
+
+// Start Switchboard first
+	ESP_LOGD(TAG, "About to start Switchboard!" );
+	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
+			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
+	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
+
 #ifdef ENABLE_WIFI
 	WiFiHub wifi; // Define wifi instance
 
@@ -83,19 +90,15 @@ void app_main ()
 //	ESP_LOGD(TAG, "....SLEEP....");
 //	vTaskDelay(10000); // Sleep forever
 //}
-	TaskHandle_t switchboardHandle;
-
-// Start Switchboard first
-	ESP_LOGD(TAG, "About to start Switchboard!" );
-	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
-			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
-	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
 	SndPlayer player ("Player" );
 
 	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
 			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
 
+	StepperDriver stepper("Stepper");
+	xTaskCreatePinnedToCore( StepperDriver::runTask, "Stepper Task", 8192,
+			&stepper, 1, nullptr, ASSIGN_STEPPER_CORE);
 	while (1)
 	{
 		vTaskDelay (5000 / portTICK_PERIOD_MS ); // Keep me alive

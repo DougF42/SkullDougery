@@ -28,14 +28,18 @@
 #include "CmdDecoder.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
+#include "Sequencer/DeviceDef.h"
 #include "SndPlayer.h"
 #include "config.h"
 #include "Parameters/RmNvs.h"
+#include "Stepper/StepperDriver.h"
 
 static const char *TAG="CmdDecoder::";
 
-CmdDecoder::CmdDecoder (TASK_NAME myId) {
+CmdDecoder::CmdDecoder (TASK_NAME myId):DeviceDef("Cmd Decoder") {
+	respBufSempahore=xSemaphoreCreateBinaryStatic(&respBufSemaphoreBuffer);
 	senderTaskName=myId;
+	SwitchBoard::registerDriver(myId, this);
 	flush();
 }
 
@@ -145,8 +149,6 @@ void CmdDecoder::parseCommand ()
  * If there is an error, we send a syntax error.
  * return value is the requested integer, or BAD_NUMBER
  */
-
-
 int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 	if (tokens[tokNo]==NULL) {
 		ESP_LOGD(TAG, "getIntArg: Missing Argument!");
@@ -174,8 +176,65 @@ void CmdDecoder::help() {
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
-	postResponse(" set  key value (see show command output)", RESPONSE_OK);
+	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
+	postResponse(" nod(d) or rot(ate) commands:",RESPONSE_MORE);
+	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
+	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
+	postResponse("   Set: Home, Lower, Upper, Ramp",  RESPONSE_MORE);
+	postResponse("   Rotate: Absolute, Relative, Home, Lower, Upper",  RESPONSE_MORE);
+	postResponse("  ",RESPONSE_OK);
 }
+
+
+/**
+ * This tests the token count, and reports a suitable error
+ * message if we dont have the right number of arguments.
+ * If arg1 and arg2 are non-null, then we decode those parameters
+ * as integers - and return suitable errors if they are not
+ * reasonable integers.
+ *
+ *  tokens[0] orig command.
+ *  tokens[1] subcommand.
+ *  tokens[2] 1st arg
+ *  tokens[3] 2nd arg
+ *
+ * @param required - the number of tokens required
+ * @param tokenCount - the number of tokens in the command
+ * @return  true normally, false if wrong number of tokens.
+ *          if false, this will post a suitable syntax error
+ */
+bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long int *arg1, long int *arg2) {
+	char *endptr=NULL;
+	if (required > tokenCount)
+				{
+					postResponse ("Missing argument(s) for this command", RESPONSE_SYNTAX );
+					return false;
+				}
+
+	if (required < tokenCount)
+	{
+					postResponse ("Extra text after argument to this command.",	RESPONSE_SYNTAX );
+					return false;
+	}
+
+	if (arg1 != NULL) {
+		*arg1=strtol(tokens[2], &endptr, 10);
+		if ( *endptr != '\0') {
+			postResponse ("Invalid integer for argument 1", RESPONSE_SYNTAX);
+			return false;
+		}
+	}
+
+	if (arg2 != NULL) {
+		*arg2=strtol(tokens[3], &endptr, 10);
+		if ( *endptr != '\0') {
+			postResponse ("Invalid integer for argument 2", RESPONSE_SYNTAX);
+			return false;
+		}
+	}
+	return(true);
+}
+
 /**
  * Process the tokenized command, and send an appropriate response.
  *
@@ -184,14 +243,14 @@ void CmdDecoder::help() {
  * tokNo    the number of tokens.
  */
 #define ISCMD(_a_) (0==strcasecmp(tokens[0], (_a_)))
-
+#define ISSUBCMD(_a_) (0==strcasecmp(tokens[1], (_a_)))
 void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 {
 	Message *msg;
 //	ESP_LOGD(TAG, "disspatchCommand - have %d arguments", tokCount);
 //	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
 
-	int val;
+	long int val;
 	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
 
@@ -202,62 +261,85 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		RmNvs::commit();
 		postResponse("OK", RESPONSE_OK);
 
+	} else if (ISCMD("EL")) { // Not really a 'NOD', but it will get to the right place...
+		msg=Message::future_Message(TASK_NAME::NODD, senderTaskName, EVENT_GET_TIME, 0, 0, nullptr);
+		SwitchBoard::send(msg);
+		postResponse("OK", RESPONSE_OK);
+
 	} else if (ISCMD("PAUSE")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("RUN")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("STOP")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0);
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("jaw" ))
 	{
-		val = getIntArg (1, tokens, 0, 1000 );
-		ESP_LOGD(TAG, "Dispatch - jaw=%d", val );
-		if (val == BAD_NUMBER)
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
 		{
 			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
 		}
 		else
 		{
+			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
 			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, 0 );
+			EVENT_ACTION_SETVALUE, val, 0, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
-		ESP_LOGD(TAG, "Dispatch - EYE" );
-		val = getIntArg (1, tokens, 0, 1000 );
-		if (val == BAD_NUMBER)
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
 		{
 			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
 		}
 		else
 		{
-			ESP_LOGD(TAG, "Dispatch - EYE=%d", val );
+			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
 			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, val );
+			EVENT_ACTION_SETVALUE, val, val, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
-	else if (ISCMD("set")) // any of the SET commands
+	else if (ISCMD("set" )) // any of the SET commands
 	{
-		setCommands( tokCount, tokens);
+		setCommands (tokCount, tokens );
 	}
+	else if (ISCMD("NOD" )) // Any of the NOD commands
+	{
+		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+		{
+			postResponse ("Missing Argument for NOD command",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			stepperCommands (tokCount, tokens );
+		}
+	}
+	else if (ISCMD("ROT" )) // Any of the ROTate commands
+		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+		{
+			postResponse ("Missing Argument for NOD command",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			stepperCommands (tokCount, tokens );
+		}
 	else
 	{
-		// TODO: UNKNOWN COMMAND
-		ESP_LOGD(TAG, "Dispatch - unknown command");
+		ESP_LOGD(TAG, "Dispatch - unknown command" );
 		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
 	return;
@@ -279,6 +361,7 @@ void CmdDecoder::showCurSettings() {
 	postResponse("END", RESPONSE_OK);
 }
 
+
 /**
  * This will handle any 'set *' command...
  * it is called from dispaychCommand, which has already identified
@@ -297,12 +380,13 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 {
 	int retVal = 0;
 
-	if (tokCount < 3)
+	if (! requireArgs( tokCount, tokens, 3, NULL, NULL ))
 	{
 		postResponse ("Missing paramter name or value in SET commnad",
 				RESPONSE_UNKNOWN );
 		return;
 	}
+
 
 	if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
 	{
@@ -326,13 +410,26 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 	else if (ISARG(1, RMNVS_IP ))
 	{
 		retVal = RmNvs::set_addr_as_string (RMNVS_IP, tokens[2] );
+		if (retVal==BAD_NUMBER) {
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
 		postResponse ("OK", RESPONSE_OK );
+		}
 	}
 
 	else if (ISARG(1, RMNVS_NETMASK ))
 	{
 		retVal = RmNvs::set_addr_as_string (RMNVS_NETMASK, tokens[2] );
-		postResponse ("OK", RESPONSE_OK );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse ("OK", RESPONSE_OK );
+		}
 	}
 
 	else if (ISARG(1, RMNVS_CMD_PORT ))
@@ -340,13 +437,20 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		uint32_t val = strtol (tokens[2], NULL, 0 );
 		if ((val <= 0) || (val >= 65535))
 		{
-			postResponse ("Port number out of range - must be between 1 and 65535",
+			postResponse (
+					"Port number out of range - must be between 1 and 65535",
 					RESPONSE_COMMAND_ERRR );
-			return;
 		}
 		else
 		{
 			retVal = RmNvs::set_int (RMNVS_CMD_PORT, val );
+			if (retVal==BAD_NUMBER) {
+				postResponse("Bad number", RESPONSE_SYNTAX);
+			}
+			else
+			{
+				postResponse("OK", RESPONSE_OK);
+			}
 		}
 	}
 
@@ -355,6 +459,14 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		char c = tolower (tokens[2][1] );
 		bool apstate = (c == '1') || (c == 'y') || (c == 't');
 		retVal = RmNvs::set_bool (RMNVS_USE_DHCP, apstate );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a boolean or bad value", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
 	}
 
 	else
@@ -362,18 +474,82 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		ESP_LOGD(TAG, "setCommands - unknown paramter name" );
 		postResponse ("Unknown parameter name in SET command",
 				RESPONSE_UNKNOWN );
-		return;
-	}
-
-	if (retVal == BAD_NUMBER)
-	{
-		postResponse ("Bad value or parameter in set command",
-				RESPONSE_UNKNOWN );
-	}
-	else
-	{
-		postResponse ("OK", RESPONSE_OK );
 	}
 
 	return;
+}
+
+
+/**
+ * This handles any of the 'stepper' commands - either the
+ * 'Rot'ational or 'Nodd' commands or requests.
+ *
+ * @param required - the number of tokens required.
+ * @param tokenCount - the number of tokens in the command.
+ *
+ */
+void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
+{
+	TASK_NAME destination = TASK_NAME::TEST;
+	Message *respMsg = nullptr;
+
+	// Which driver?
+	if (ISCMD("ROT" ))
+		destination = TASK_NAME::ROTATE;
+	else
+		destination = TASK_NAME::NODD;
+
+   // Let the 'execute' function handle the specific command.
+	respMsg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
+	SwitchBoard::send(respMsg);
+	return;
+}
+
+
+/**
+ * After a device processes a command from the command decoder, it may respond back
+ * with a text message indicating its status. (At this time, only the stepper driver
+ * does this).
+ *
+ * This routine in turn takes the callback message, and formats it for the 'postResponse'
+ * method of our derived class, so that the response will go back up the channel to
+ * whoever (or whatever) originated the command.
+ *
+ * To prevent various overrun problems (such as multiple messages from different
+ * tasks arriving back-to-back), we use a semaphore to prevent
+ * the possibility of a second messsage being delivered before the first is
+ * completely dealt with.
+ *
+ */
+void CmdDecoder::callBack (const Message *msg)
+{
+	xSemaphoreTake(respBufSempahore, (TickType_t ) 10 );
+	if ((msg->response == TASK_NAME::NODD)
+			|| (msg->response == TASK_NAME::ROTATE))
+	{
+
+		switch (msg->event)
+		{
+			case (EVENT_STEPPER_EXECUTE_CMD):
+				if (strlen (msg->text ) < 1)
+				{
+					// Assume a good response
+					postResponse ("OK", RESPONSE_OK );
+				}
+				else
+				{
+					postResponse (msg->text, RESPONSE_OK );
+				}
+				break;
+
+			default:
+				snprintf (respBuf, sizeof(respBuf),
+						"Unkown response to command. Source:%3d  Event:%4d.",
+						TASK_IDX(msg->response), msg->event);
+				postResponse (respBuf, RESPONSE_OK );
+				break;
+		}
+
+	}
+	xSemaphoreGive(respBufSempahore );
 }

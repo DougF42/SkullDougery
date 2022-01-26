@@ -36,15 +36,13 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define GPIO_BUTTON GPIO_NUM_0
 
 
-
 /* = = = = = = = = = == */
 
 // CORE assignments.
 // thew CORE where the switchboard and most drivers reside
-#define ASSIGN_SWITCHBOARD_CORE 0
-
-// Where we send data to DAC
+#define ASSIGN_SWITCHBOARD_CORE 1
 #define ASSIGN_MUSIC_CORE     0
+#define ASSIGN_STEPPER_CORE   1
 
 #define SEQUENCER_PANIC_BACKLOG 5
 
@@ -56,6 +54,7 @@ extern i2s_pin_config_t i2s_speaker_pins;
 #define SOURCE_FILE_NAME "/fs/DaysMono.mp3"
 
 // PIN Definitions
+#define ESP_LED_PIN 2
 
 // NOD - stepper
 #define NOD_PINA GPIO_NUM_23
