@@ -45,14 +45,14 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   pinMode(pin2  , OUTPUT);
   pinMode(pin3  , OUTPUT);
   if (driverType==NON_DIGITAL)  pinMode(pin4  , OUTPUT);
-  pinMode(LEDPin, OUTPUT);
+  if (ledPin >= 0) pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
   digitalWrite(pin1, LOW);
   digitalWrite(pin2, LOW);
   digitalWrite(pin3, LOW);
   if (driverType==NON_DIGITAL)  digitalWrite(pin4, LOW);
-  digitalWrite(LEDPin, LOW);
+  if (ledPin >= 0) digitalWrite(LEDPin, LOW);
 
   // If DIGITAL, start with motor disabled
   if (DriverType == DIGITAL)
@@ -483,7 +483,8 @@ const char * StepperMotorController::GetVersion()
 
 void StepperMotorController::BlinkLED()
 {
-  // Blink onboard LED
+  // Blink onboard LED (if defined)
+  if (LEDPin < 0 ) return;
   for (int i=0; i<10; i++)
   {
     digitalWrite(LEDPin, HIGH);

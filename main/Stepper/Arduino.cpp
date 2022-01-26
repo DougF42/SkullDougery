@@ -48,6 +48,7 @@ void pinMode(int pin,  enum IOMODE mode) {
 	int ret=gpio_config(&cfg);
 	if (ret!=ESP_OK) {
 		ESP_LOGE(TAG, "pinmode for pin %d returned %d(%s)",pin, ret, esp_err_to_name(ret) );
+		abort();
 	}
 }
 

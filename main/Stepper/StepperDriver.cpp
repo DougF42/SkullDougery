@@ -33,11 +33,9 @@ StepperDriver::~StepperDriver ()
 }
 
 
-#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);\
-		esp_timer_stop (myTimer );
+#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);
 
-#define STARTCLOCK xSemaphoreGive(mylock);\
-		clockCallback (this );
+#define STARTCLOCK xSemaphoreGive(mylock);
 
 /**
  * This is how messages (commands) are delivered to us.
@@ -119,7 +117,7 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->nodControl = new StepperMotorController(DIGITAL, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, ESP_LED_PIN);
+	me->nodControl = new StepperMotorController(NON_DIGITAL, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, ESP_LED_PIN);
 	me->rotControl = new StepperMotorController(NON_DIGITAL,ROTATE_PINA,ROTATE_PINB,ROTATE_PINC,ROTATE_PIND, -1);
 
 	// Initialize the timer
