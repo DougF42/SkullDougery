@@ -31,7 +31,7 @@
 
 #define NVS_VERSION "1.0"
 
-#define STA_MODE
+
 
 
 static bool have_init_ok = false;
@@ -174,17 +174,23 @@ void RmNvs::init_values() {
 
 	int idx=0;
 
-#ifdef  STA_MODE
+#if defined NET_DOUGSHOME
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "Daisy-5_2GEXT");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "iknowits42");
 	initSingleBool  (idx++, RMNVS_FORCE_STA_MODE, true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
-#else
+#elif defined NET_MAKERSLAIR
+	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "Makers'Lair-2.4");
+	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "sparksAreHere");
+	initSingleBool  (idx++, RMNVS_FORCE_STA_MODE, true);
+	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
+#elif defined NET_NYOWNHUB
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleBool  (idx++,   RMNVS_FORCE_STA_MODE, false);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 #endif
+
 	initSingleInt   (idx++, RMNVS_CMD_PORT,       100);
 	initSingleBool  (idx++, RMNVS_USE_DHCP,       true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address

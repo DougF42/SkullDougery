@@ -11,6 +11,11 @@
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
 
+// Pre-defined network configs (because Im lazy!)
+// DEFINE ONE (and only one) OF THESE!!!
+#define NET_NYOWNHUB
+//#define NET_DOUGSHOME
+//#define NET_MAKERSLAIR
 
 
 
