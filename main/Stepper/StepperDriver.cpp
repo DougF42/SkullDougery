@@ -16,6 +16,8 @@
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
 
+// The rate (in uSeconds) that 'run' will be called.
+#define CLOCK_RATE 2000
 
 static const char *TAG="STEPPER DRIVER::";
 static volatile unsigned long maxInterval=0;
@@ -133,7 +135,7 @@ void StepperDriver::controlTimer(bool flag) {
 	if (flag == timer_state) return;
 	if (flag)
 	{
-		esp_timer_start_periodic(myTimer, 1000); // Interval in uSeconds.
+		esp_timer_start_periodic(myTimer, CLOCK_RATE); // Interval in uSeconds.
 		timer_state=true;
 	}
 	else
