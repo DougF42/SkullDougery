@@ -18,6 +18,7 @@
 
 #define EVENT_STEPPER_EXECUTE_CMD 101
 #define EVENT_GET_TIME            102
+#define EVENT_STEPPER_CONTROL_TIMER 103
 
 
 class StepperDriver: public DeviceDef
@@ -27,7 +28,7 @@ public:
 	virtual ~StepperDriver ();
 	void callBack(const Message *msg);
 	static void runTask(void *param);
-
+	void controlTimer(bool flag);
 private:
 	StepperMotorController *nodControl;
 	StepperMotorController *rotControl;
@@ -36,6 +37,7 @@ private:
 	static void clockCallback(void *_me);
 	SemaphoreHandle_t mylock;
 	StaticSemaphore_t  mylocksBuffer;
+	bool timer_state;
 
 };
 

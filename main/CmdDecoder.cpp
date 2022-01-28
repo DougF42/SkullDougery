@@ -172,11 +172,12 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
  *
  */
 void CmdDecoder::help() {
-	postResponse("Help, show, commit \n",RESPONSE_MORE);
+	postResponse("Help, show, commit restart \n",RESPONSE_MORE);
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
 	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
+	postResponse(" set clear nvs", RESPONSE_MORE);
 	postResponse(" nod(d) or rot(ate) commands:",RESPONSE_MORE);
 	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
 	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
@@ -247,9 +248,12 @@ bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long
 void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 {
 	Message *msg;
-//	ESP_LOGD(TAG, "disspatchCommand - have %d arguments", tokCount);
-//	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
-
+	ESP_LOGD(TAG, "disspatchCommand - have %d arguments. TOKENS:\n",tokCount);
+	for (int idx=0; idx<tokCount; idx++)
+	{
+		ESP_LOGD(TAG, "  TOKEN %d is `%s`", idx, tokens[idx]);
+	}
+	ESP_LOGD(TAG, "------");
 	long int val;
 	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
@@ -258,7 +262,12 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		showCurSettings();
 
 	} else if (ISCMD("COMMIT")) {
+		msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, false, 0, NULL);
+		SwitchBoard::send(msg);
+		vTaskDelay(10L);
 		RmNvs::commit();
+		msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, true, 0, NULL);
+		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("EL")) { // Not really a 'NOD', but it will get to the right place...
@@ -281,6 +290,9 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
+	}else if (ISCMD("RESTART")) {
+		esp_restart();
+
 	} else if (ISCMD("jaw" ))
 	{
 		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
@@ -296,6 +308,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
+
 	else if (ISCMD("eye" )) // Set EYE intensity
 	{
 		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
@@ -311,10 +324,12 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 			postResponse ("OK", RESPONSE_OK );
 		}
 	}
+
 	else if (ISCMD("set" )) // any of the SET commands
 	{
 		setCommands (tokCount, tokens );
 	}
+
 	else if (ISCMD("NOD" )) // Any of the NOD commands
 	{
 		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
@@ -327,16 +342,18 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 			stepperCommands (tokCount, tokens );
 		}
 	}
+
 	else if (ISCMD("ROT" )) // Any of the ROTate commands
 		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
 		{
-			postResponse ("Missing Argument for NOD command",
+			postResponse ("Missing Argument for ROT command",
 					RESPONSE_COMMAND_ERRR );
 		}
 		else
 		{
 			stepperCommands (tokCount, tokens );
 		}
+
 	else
 	{
 		ESP_LOGD(TAG, "Dispatch - unknown command" );
@@ -379,6 +396,7 @@ void CmdDecoder::showCurSettings() {
 void CmdDecoder::setCommands (int tokCount, char *tokens[])
 {
 	int retVal = 0;
+	Message *msg=NULL;
 
 	if (! requireArgs( tokCount, tokens, 3, NULL, NULL ))
 	{
@@ -387,8 +405,23 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		return;
 	}
 
+	if (ISARG(1, "CLEAR")) {
+		if (! ISARG(2,"NVS")) {
+			postResponse("Bad Command - missing 'NVS' as second argument.", RESPONSE_UNKNOWN);
+		}
+		else
+		{
+			msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, false, 0, NULL);
+			SwitchBoard::send(msg);
+			vTaskDelay(2L);     // Give Switchboard a chance to deliver
+			RmNvs::clear_nvs();    // DOES NOT RETURN. DOES automatic RESTART
+			postResponse("OK", RESPONSE_OK);
+			msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, true, 0, NULL);
+						SwitchBoard::send(msg);
+		}
+	}
 
-	if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
+	else if (ISARG(1, RMNVS_KEY_WIFI_SSID ))
 	{
 		retVal = RmNvs::set_str (RMNVS_KEY_WIFI_SSID, tokens[2] );
 		postResponse ("OK", RESPONSE_OK );
@@ -400,9 +433,31 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		postResponse ("OK", RESPONSE_OK );
 	}
 
+	else if (ISARG(1, RMNVS_WIFI_CHANNEL ))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		if ((val <= 0) || (val >= 32))
+		{
+			postResponse (
+					"Port number out of range - must be between 1 and 32",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			retVal = RmNvs::set_int (RMNVS_WIFI_CHANNEL, val );
+			if (retVal==BAD_NUMBER) {
+				postResponse("Bad number", RESPONSE_SYNTAX);
+			}
+			else
+			{
+				postResponse("OK", RESPONSE_OK);
+			}
+		}
+	}
+
 	else if (ISARG(1, RMNVS_FORCE_STA_MODE ))
 	{
-		char c = tolower (tokens[2][1] );
+		char c = tolower (tokens[2][0] );
 		bool apstate = (c == '1') || (c = 'y') || (c == 't');
 		retVal = RmNvs::set_bool (RMNVS_FORCE_STA_MODE, apstate );
 	}
@@ -432,6 +487,68 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		}
 	}
 
+	else if (ISARG(1, RMNVS_ROUTER_ADDR))
+	{
+		retVal = RmNvs::set_addr_as_string (RMNVS_ROUTER_ADDR, tokens[2] );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse ("OK", RESPONSE_OK );
+		}
+	}
+
+	else if (ISARG(1, RMNVS_SRV_ADDR))
+	{
+		retVal = RmNvs::set_addr_as_string (RMNVS_SRV_ADDR, tokens[2] );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse ("OK", RESPONSE_OK );
+		}
+	}
+
+	else if (ISARG(1, RMNVS_SRV_PORT ))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		if ((val <= 0) || (val >= 65535))
+		{
+			postResponse (
+					"Port number out of range - must be between 1 and 65535",
+					RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			retVal = RmNvs::set_int (RMNVS_SRV_PORT, val );
+			if (retVal==BAD_NUMBER) {
+				postResponse("Bad number", RESPONSE_SYNTAX);
+			}
+			else
+			{
+				postResponse("OK", RESPONSE_OK);
+			}
+		}
+	}
+
+	else if (ISARG(1, RMNVS_DNS_ADDR))
+	{
+		retVal = RmNvs::set_addr_as_string (RMNVS_DNS_ADDR, tokens[2] );
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Bad IP address", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse ("OK", RESPONSE_OK );
+		}
+	}
+
+
 	else if (ISARG(1, RMNVS_CMD_PORT ))
 	{
 		uint32_t val = strtol (tokens[2], NULL, 0 );
@@ -456,7 +573,7 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 
 	else if (ISARG(1, RMNVS_USE_DHCP ))
 	{
-		char c = tolower (tokens[2][1] );
+		char c = tolower (tokens[2][0] );
 		bool apstate = (c == '1') || (c == 'y') || (c == 't');
 		retVal = RmNvs::set_bool (RMNVS_USE_DHCP, apstate );
 		if (retVal==BAD_NUMBER)
@@ -484,7 +601,6 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
  * This handles any of the 'stepper' commands - either the
  * 'Rot'ational or 'Nodd' commands or requests.
  *
- * @param required - the number of tokens required.
  * @param tokenCount - the number of tokens in the command.
  *
  */
@@ -499,6 +615,11 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 	else
 		destination = TASK_NAME::NODD;
 
+	// Make the command upper case
+	for (int idx=0; tokens[idx]!=0; idx++) {
+	  tokens[1][idx] = (char)toupper( tokens[1][idx]);
+	}
+	
    // Let the 'execute' function handle the specific command.
 	respMsg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
 	SwitchBoard::send(respMsg);

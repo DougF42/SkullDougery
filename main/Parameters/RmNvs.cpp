@@ -195,7 +195,7 @@ void RmNvs::init_values() {
 	initSingleBool  (idx++, RMNVS_USE_DHCP,       true);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
 	initSingleAddr  (idx++, RMNVS_NETMASK,        "255.255.255.0");
-	initSingleString(idx++, RMNVS_ROUTER_ADDR,    " ");
+	initSingleAddr  (idx++, RMNVS_ROUTER_ADDR,    " ");
 
 	initSingleAddr  (idx++, RMNVS_SRV_ADDR,       "192.168.4.4");  // Who I should log to
 	initSingleInt   (idx++, RMNVS_SRV_PORT,       3001);
@@ -210,12 +210,14 @@ void RmNvs::init_values() {
 
 /**
  * Write any 'changed' values to NVS.
+ * 1/27/2022 DEF Need to stop the AccelStepper timer!
  */
 void RmNvs::commit ()
 {
 	int idx;
 	int err;
 	char buf[64];
+
 	ESP_LOGD(TAG, "IN RMNVS_commit. Number of curvalues is %d", NOOFCURVALUES );
 	for (idx = 0; idx < NOOFCURVALUES; idx++ )
 	{
@@ -277,6 +279,7 @@ void RmNvs::commit ()
 			curValues[idx].changed = false;
 		} // End of if changed
 	}  // End of for loop
+
 	return;
 }
 

@@ -15,8 +15,11 @@
 #include "SndPlayer.h"
 #include "Network/WiFiHub.h"
 #include "Stepper/StepperDriver.h"
+
 #define ENABLE_PWM_DRIVER
 #define ENABLE_WIFI
+#define RUNSTEPPER
+
 #include "audio/minimp3.h"
 
 static const char *TAG = "MAIN::";
@@ -95,10 +98,11 @@ void app_main ()
 
 	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
 			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
-
+#ifdef RUNSTEPPER
 	StepperDriver stepper("Stepper");
 	xTaskCreatePinnedToCore( StepperDriver::runTask, "Stepper Task", 8192,
 			&stepper, 1, nullptr, ASSIGN_STEPPER_CORE);
+#endif
 	while (1)
 	{
 		vTaskDelay (5000 / portTICK_PERIOD_MS ); // Keep me alive

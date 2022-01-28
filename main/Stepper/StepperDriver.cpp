@@ -27,6 +27,7 @@ StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 	nodControl=nullptr;
 	rotControl=nullptr;
 	mylock = xSemaphoreCreateBinaryStatic(&mylocksBuffer);
+	timer_state=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -56,6 +57,11 @@ void StepperDriver::callBack (const Message *msg)
 		ESP_LOGD(TAG, "STEPPER TIME INTERVAL %ld", maxInterval );
 		maxInterval = 0L;
 	}
+
+	else if (msg->event == EVENT_STEPPER_CONTROL_TIMER) {
+		controlTimer(msg->value!=0);
+	}
+
 	else if (msg->event == EVENT_STEPPER_EXECUTE_CMD)
 	{
 		switch (msg->destination)
@@ -79,8 +85,8 @@ void StepperDriver::callBack (const Message *msg)
 		respMsg = Message::future_Message (msg->response, msg->destination,
 				msg->event, 0L, 0L, respText );
 		SwitchBoard::send (respMsg );
-	STARTCLOCK
-}
+		STARTCLOCK
+	}
 }
 
 
@@ -117,6 +123,26 @@ void StepperDriver::clockCallback(void *arg) {
 
 }
 
+/**
+ * Stop or start the timer, based on the 'flag'.
+ * If the timer is already in that mode, do nothing.
+ * @param flag - boolean. true to start, false to stop timer.
+ *
+ */
+void StepperDriver::controlTimer(bool flag) {
+	if (flag == timer_state) return;
+	if (flag)
+	{
+		esp_timer_start_periodic(myTimer, 1000); // Interval in uSeconds.
+		timer_state=true;
+	}
+	else
+	{
+		esp_timer_stop(myTimer);
+		timer_state=false;
+	}
+
+}
 
 /**
  * This is the 'StepperDriver' task.
@@ -148,7 +174,8 @@ void StepperDriver::runTask(void *param) {
 
 	//clockCallback(param);   // Force first time thru the clock callback.
 	// esp_timer_start_once(me->myTimer, nextTime-now);
-	esp_timer_start_periodic(me->myTimer, 1000); // Interval in uSeconds.
+	//esp_timer_start_periodic(me->myTimer, 1000); // Interval in uSeconds.
+	me->controlTimer(true);
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

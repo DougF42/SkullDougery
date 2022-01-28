@@ -38,10 +38,6 @@
 static const char *TAG = "+++wifi softAP";
 
 
-//TaskHandle_t WiFiHub::udpServerTask;
-//UDPServer WiFiHub::udpsever(TASK_NAME::UDP);
-
-
 /**
  * Watch for events...
  *  NOTE that this listener handles BOTH the HUB and the Access Point modes!!!
