@@ -17,7 +17,7 @@
 #include "../Sequencer/DeviceDef.h"
 
 // The rate (in uSeconds) that 'run' will be called.
-#define CLOCK_RATE 2000
+#define CLOCK_RATE 500
 
 static const char *TAG="STEPPER DRIVER::";
 static volatile unsigned long maxInterval=0;
