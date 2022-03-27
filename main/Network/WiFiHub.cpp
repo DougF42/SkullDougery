@@ -172,7 +172,7 @@ void WiFiHub::WiFi_HUB_init ()
 
 	ESP_ERROR_CHECK(esp_netif_init () );
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
-	esp_netif_create_default_wifi_ap ();
+	thisNetif =esp_netif_create_default_wifi_ap ();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
@@ -207,9 +207,19 @@ void WiFiHub::WiFi_HUB_init ()
 			RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
 			RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
 			RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
+
 	udpserver= new UDPServer(TASK_NAME::UDP);
 	xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
 			(void*) udpserver, 1, &udpServerTask );
+
+	// get my info...
+    esp_netif_ip_info_t ip_info;
+        esp_netif_get_ip_info(thisNetif, &ip_info);
+        ESP_LOGI(TAG, "My IP:     " IPSTR "\n", IP2STR(&ip_info.ip));
+        ESP_LOGI(TAG, "My GW:     " IPSTR "\n", IP2STR(&ip_info.gw));
+        ESP_LOGI(TAG,"My NETMASK: " IPSTR "\n", IP2STR(&ip_info.netmask));
+
+
 }
 
 

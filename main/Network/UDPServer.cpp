@@ -36,11 +36,12 @@ const static char *TAG="...UDPSERVER";
 
 UDPServer::UDPServer (TASK_NAME devId):CmdDecoder (devId)
 {
-	sock=-1;
+	sock = -1;
 }
 
 UDPServer::~UDPServer() {
 	if (sock >=0 ) close(sock);
+	sock = -1;
 }
 
 /**

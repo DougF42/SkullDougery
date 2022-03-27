@@ -32,6 +32,7 @@ public:
 	virtual ~WiFiHub ();
 	void WiFi_HUB_init();
 	void WiFi_STA_init ();
+	esp_netif_t *thisNetif;
 
 private:
 	static void wifi_event_handler(void* arg, esp_event_base_t event_base,
