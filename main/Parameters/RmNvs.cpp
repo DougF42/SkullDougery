@@ -31,7 +31,9 @@
 
 #define NVS_VERSION "1.0"
 
-#define STA_MODE
+// Enabling this causes the default mode to connect to my home network as a station,
+// default is as a hub with network 'skulldougery'
+// #define STA_MODE
 
 
 static bool have_init_ok = false;

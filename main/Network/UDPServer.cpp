@@ -55,6 +55,8 @@ void UDPServer::startListenTask(void *param)
 	int addr_family = AF_INET;
 	int ip_protocol = 0;
 
+	ESP_LOGI(TAG, "Starting UDP commands server - port %d", RmNvs::get_int(RMNVS_CMD_PORT));
+
 	//TODO: REGISTER AS A DEVICE (to receive responses!)
 	SwitchBoard::registerDriver(TASK_NAME::UDP, me);
 
@@ -79,7 +81,7 @@ void UDPServer::startListenTask(void *param)
 		{
 			ESP_LOGE(TAG, "Socket unable to bind: errno %d", errno );
 		}
-		ESP_LOGI(TAG, "Socket bound, port %d",  RmNvs::get_int(RMNVS_CMD_PORT) );
+		ESP_LOGI(TAG, "Socket bound, port %d",  ntohs(dest_addr.sin_port) );
 
 		me->UDP_Server_handleCommmands( );
 
@@ -101,44 +103,40 @@ void UDPServer::startListenTask(void *param)
  *  command as soon as it is recevied and send a reply to the source.
  * Each packet is a complete command.
  */
-	void UDPServer::UDP_Server_handleCommmands () {
-		char rx_buffer[128];
-		char addr_str[128];
-		// The actual server...
-		while (1)
-		{
-			ESP_LOGI(TAG, "Waiting for data" );
-			// TODO: TEST FOR SHUTDOWN NOTIFY ?
-			socklen_t socklen = sizeof(source_addr);
-			int len = recvfrom (sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
-					(struct sockaddr*) &source_addr, &socklen );
+void UDPServer::UDP_Server_handleCommmands() {
+	char rx_buffer[128];
+	char addr_str[128];
+	// The actual server...
+	while (1) {
+		ESP_LOGI(TAG, "Waiting for data");
+		socklen_t socklen = sizeof(source_addr);
+		int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
+				(struct sockaddr*) &source_addr, &socklen);
 
-			// Error occurred during receiving
-			if (len < 0)
-			{
-				ESP_LOGE(TAG, "recvfrom failed: errno %d", errno );
-				break;
+		// Error occurred during receiving
+		if (len < 0) {
+			ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+			break;
+
+		} else {    // Data received
+					// Get the sender's ip address as string
+			ESP_LOGI(TAG, "Received data...");
+			if (source_addr.ss_family == PF_INET) {
+				inet_ntoa_r(((struct sockaddr_in* )&source_addr)->sin_addr,
+						addr_str, sizeof(addr_str) - 1);
+			} else {
+				ESP_LOGE(TAG,
+						"OOPS - address family is not PF_INET in USPServer.cpp");
 			}
-			// Data received
-			else
-			{
-				// Get the sender's ip address as string
-				if (source_addr.ss_family == PF_INET)
-				{
-					inet_ntoa_r(((struct sockaddr_in* )&source_addr)->sin_addr,
-							addr_str, sizeof(addr_str) - 1 );
-				}
 
-
-				rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-				ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str );
-				ESP_LOGI(TAG, "%s", rx_buffer );
-				// PROCESS COMMAND. Response will be generated before 'addToBuffer' returns...
-				addToBuffer (rx_buffer, len);
-				addEOLtoBuffer();
-
-			}
-		}  // End of inner while(1)
+			rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+			ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+			ESP_LOGI(TAG, "%s", rx_buffer);
+			// PROCESS COMMAND. Response will be generated before 'addToBuffer' returns...
+			addToBuffer(rx_buffer, len);
+			addEOLtoBuffer();
+		}
+	}  // End of inner while(1)
 
 }
 

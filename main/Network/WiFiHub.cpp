@@ -94,7 +94,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				ESP_LOGI(TAG, "CONNECTED to HUB: ssid=%s,  channel=%d", ssid,
 						event_connect_sta->channel );
 
-				// TODO: Time to force addreess??
+				// TODO: Time to force address ?
 				break;
 
 			case (WIFI_EVENT_STA_DISCONNECTED):
@@ -167,16 +167,19 @@ WiFiHub::~WiFiHub() {
  */
 void WiFiHub::WiFi_HUB_init ()
 {
-
+	esp_netif_t *nethandle=nullptr;
+	esp_netif_ip_info_t ipinfo;
 	ESP_LOGI(TAG, "wifi_init_softap started. SSID:%s password:%s channel:%d",
 				RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
 				RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
 				RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
 
 
-	ESP_ERROR_CHECK(esp_netif_init () );
+	ESP_ERROR_CHECK( esp_netif_init () );
 	ESP_ERROR_CHECK(esp_event_loop_create_default () );
-	esp_netif_create_default_wifi_ap ();
+
+
+	nethandle=esp_netif_create_default_wifi_ap ();
 
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init (&cfg ) );
@@ -207,13 +210,20 @@ void WiFiHub::WiFi_HUB_init ()
 	ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config) );
 	ESP_ERROR_CHECK(esp_wifi_start () );
 
+
+
 	ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s  password:%s  channel:%d",
 			RmNvs::get_str(RMNVS_KEY_WIFI_SSID),
 			RmNvs::get_str(RMNVS_KEY_WIFI_PASS),
 			RmNvs::get_int(RMNVS_WIFI_CHANNEL) );
+
+	esp_netif_get_ip_info(nethandle, &ipinfo);
+	ESP_LOGI(TAG, "Server addr: %s  netmask: %s" , inet_ntoa(ipinfo.ip), inet_ntoa(ipinfo.netmask));
+
 	udpserver= new UDPServer(TASK_NAME::UDP);
 	xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
 			(void*) udpserver, 1, &udpServerTask );
+
 }
 
 
@@ -223,6 +233,7 @@ void WiFiHub::WiFi_HUB_init ()
  */
 void WiFiHub::WiFi_STA_init ()
 {
+
 	UDPServer udpsever (TASK_NAME::UDP );
 
 	ESP_ERROR_CHECK(esp_netif_init () );
