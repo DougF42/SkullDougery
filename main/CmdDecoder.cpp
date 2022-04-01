@@ -188,18 +188,22 @@ void CmdDecoder::help() {
 /**
  * This tests the token count, and reports a suitable error
  * message if we dont have the right number of arguments.
+ *
  * If arg1 and arg2 are non-null, then we decode those parameters
  * as integers - and return suitable errors if they are not
  * reasonable integers.
  *
- *  tokens[0] orig command.
- *  tokens[1] subcommand.
- *  tokens[2] 1st arg
- *  tokens[3] 2nd arg
+ *  tokens[0] orig command. (1 tokens total)
+ *  tokens[1] 1st arg       (3 tokens total)
+ *  tokens[2] 2nd arg       (4 tokens total)
  *
- * @param required - the number of tokens required
- * @param tokenCount - the number of tokens in the command
- * @return  true normally, false if wrong number of tokens.
+
+ * * @param tokenCount - Total number of tokens loaded in 'tokens' array
+ * @param tokens[]   - a list of strings, one per token.
+ * @param required - the total number of tokens required for this command.
+ * @param arg1    - (If not nullptr, this is a pointer to where to store argument 1 decoded as an integer
+ * @param arg2    - (If not nullptr, this is a pointer to where to store argument 2 decoded as an integer
+ * @return  true normally, false if wrong number of tokens or other error.
  *          if false, this will post a suitable syntax error
  */
 bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long int *arg1, long int *arg2) {
@@ -217,7 +221,7 @@ bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long
 	}
 
 	if (arg1 != NULL) {
-		*arg1=strtol(tokens[2], &endptr, 10);
+		*arg1=strtol(tokens[1], &endptr, 10);
 		if ( *endptr != '\0') {
 			postResponse ("Invalid integer for argument 1", RESPONSE_SYNTAX);
 			return false;
@@ -225,7 +229,7 @@ bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long
 	}
 
 	if (arg2 != NULL) {
-		*arg2=strtol(tokens[3], &endptr, 10);
+		*arg2=strtol(tokens[2], &endptr, 10);
 		if ( *endptr != '\0') {
 			postResponse ("Invalid integer for argument 2", RESPONSE_SYNTAX);
 			return false;
@@ -253,7 +257,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
 
-	} else if (ISCMD("SHOW")) {
+	} else if (ISCMD("SHOW")) { // ignore garbage, if any
 		showCurSettings();
 
 	} else if (ISCMD("COMMIT")) {
@@ -311,15 +315,8 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	}
 	else if (ISCMD("NOD" )) // Any of the NOD commands
 	{
-		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
-		{
-			postResponse ("Missing Argument for NOD command",
-					RESPONSE_COMMAND_ERRR );
-		}
-		else
-		{
-			stepperCommands (tokCount, tokens );
-		}
+		stepperCommands (tokCount, tokens );
+
 	}
 	else if (ISCMD("ROT" )) // Any of the ROTate commands
 		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
@@ -486,6 +483,12 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 {
 	TASK_NAME destination = TASK_NAME::TEST;
 	Message *msg = nullptr;
+
+	if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+	{
+		postResponse ("Missing Argument",
+				RESPONSE_COMMAND_ERRR );
+	}
 
 	// Which driver?
 	if (ISCMD("ROT" ))

@@ -57,7 +57,7 @@ void UDPServer::startListenTask(void *param)
 
 	ESP_LOGI(TAG, "Starting UDP commands server - port %d", RmNvs::get_int(RMNVS_CMD_PORT));
 
-	//TODO: REGISTER AS A DEVICE (to receive responses!)
+	// REGISTER AS A DEVICE (to receive responses!)
 	SwitchBoard::registerDriver(TASK_NAME::UDP, me);
 
 	while (1)

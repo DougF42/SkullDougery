@@ -220,6 +220,8 @@ void WiFiHub::WiFi_HUB_init ()
 	esp_netif_get_ip_info(nethandle, &ipinfo);
 	ESP_LOGI(TAG, "Server addr: %s  netmask: %s" , inet_ntoa(ipinfo.ip), inet_ntoa(ipinfo.netmask));
 
+	vTaskDelay(10000/portTICK_PERIOD_MS); // Give the AP time...
+
 	udpserver= new UDPServer(TASK_NAME::UDP);
 	xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
 			(void*) udpserver, 1, &udpServerTask );
