@@ -24,6 +24,7 @@
  */
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include <ctype.h>
 #include "CmdDecoder.h"
 #include "Sequencer/Message.h"
@@ -33,6 +34,7 @@
 #include "config.h"
 #include "Parameters/RmNvs.h"
 #include "Stepper/StepperDriver.h"
+#include "PwmDriver.h"
 
 static const char *TAG="CmdDecoder::";
 
@@ -176,7 +178,7 @@ void CmdDecoder::help() {
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
 	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
-	postResponse(" nod(d) or rot(ate) commands:",RESPONSE_MORE);
+	postResponse(" nod(d) or rot(ate) - stepper commands:",RESPONSE_MORE);
 	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
 	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
 	postResponse("   Set: Home, Lower, Upper, Ramp",  RESPONSE_MORE);
@@ -194,11 +196,10 @@ void CmdDecoder::help() {
  * reasonable integers.
  *
  *  tokens[0] orig command. (1 tokens total)
- *  tokens[1] 1st arg       (3 tokens total)
- *  tokens[2] 2nd arg       (4 tokens total)
+ *  tokens[1] 1st arg       (2 tokens total)
+ *  tokens[2] 2nd arg       (3 tokens total)
  *
-
- * * @param tokenCount - Total number of tokens loaded in 'tokens' array
+ * @param tokenCount - Total number of tokens loaded in 'tokens' array.
  * @param tokens[]   - a list of strings, one per token.
  * @param required - the total number of tokens required for this command.
  * @param arg1    - (If not nullptr, this is a pointer to where to store argument 1 decoded as an integer
@@ -254,6 +255,68 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 //	ESP_LOGD(TAG, "disspatchCommand - command is %s", tokens[0]);
 
 	long int val;
+	if (tokCount==1)
+	{
+		noArguments(tokCount, tokens);
+
+	}	else if (ISCMD("jaw" ))
+	{
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
+		{
+			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
+			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
+			EVENT_ACTION_SETVALUE, val, 0, nullptr );
+			SwitchBoard::send (msg );
+			postResponse ("OK", RESPONSE_OK );
+		}
+
+	}	else if (ISCMD("eye" )) // Set EYE intensity
+	{
+		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
+		{
+			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
+		}
+		else
+		{
+			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
+			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+			EVENT_ACTION_SETVALUE, val, val, nullptr );
+			SwitchBoard::send (msg );
+			postResponse ("OK", RESPONSE_OK );
+		}
+
+	}	else if (ISCMD("set" )) // any of the SET commands
+	{
+		setCommands (tokCount, tokens );
+
+	}	else if (ISCMD("NOD" )) // Any of the NOD commands
+	{
+		stepperCommands (tokCount, tokens );
+
+	}	else if (ISCMD("ROT" )) // Any of the ROTate commands
+	{
+		stepperCommands (tokCount, tokens );
+
+	} else	{
+		ESP_LOGD(TAG, "Dispatch - unknown command" );
+		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
+	}
+	return;
+}
+
+/**
+ * No-Argument commands
+ * the assumption is that there is only one argument,
+ * so either its one of these commands, or its invalid.
+ */
+void CmdDecoder::noArguments(int tokCount, char *tokens[])
+{
+	Message *msg;
+	if (! requireArgs( tokCount, tokens, 1, nullptr, nullptr)) return;
 	if (ISCMD("HELP") || ISCMD("?")) {
 		help();
 
@@ -279,68 +342,69 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
-	} else if (ISCMD("jaw" ))
-	{
-		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
-		{
-			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
-		}
-		else
-		{
-			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
-			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, 0, nullptr );
-			SwitchBoard::send (msg );
-			postResponse ("OK", RESPONSE_OK );
-		}
-	}
-	else if (ISCMD("eye" )) // Set EYE intensity
-	{
-		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
-		{
-			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
-		}
-		else
-		{
-			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
-			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, val, nullptr );
-			SwitchBoard::send (msg );
-			postResponse ("OK", RESPONSE_OK );
-		}
-	}
-	else if (ISCMD("set" )) // any of the SET commands
-	{
-		setCommands (tokCount, tokens );
-	}
-	else if (ISCMD("NOD" )) // Any of the NOD commands
-	{
-		stepperCommands (tokCount, tokens );
+	} else if (ISCMD("EYES")) {
+		// TODO: Report eyeball settings.
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
+		SwitchBoard::send(msg);
+		postResponse("SORRY-NOT IMPLEMENTED", RESPONSE_COMMAND_ERRR);
 
+	} else	{
+		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
+		SwitchBoard::send(msg);
+		postResponse("ERROR-Unknown command", RESPONSE_UNKNOWN);
 	}
-	else if (ISCMD("ROT" )) // Any of the ROTate commands
-		if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+}
+
+
+/**
+ * @brief decode eyes command.
+ * This command can have zero, one OR two arguments.
+ *   if zero, then it is decoded by the 'noArguments' routine, and reports
+ *         the setting of the two eyes.
+ *   if only one, both eyes are set the same.
+ *   if two, then the left and right eyes are set independently.
+ */
+void CmdDecoder::setEyes (int tokCount, char *tokens[])
+{
+	Message *msg;
+	long int left, right = 0;
+	if (tokCount == 2)
+	{   // set both eyes the same
+		if (!requireArgs (tokCount, tokens, 2, &left, nullptr ))
 		{
-			postResponse ("Missing Argument for NOD command",
-					RESPONSE_COMMAND_ERRR );
+			right = left;
+			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+					EVENT_ACTION_SETLEFT, left, right, nullptr );
+			SwitchBoard::send (msg );
+			postResponse("OK", RESPONSE_OK);
+		} else {
+			return; // error - bad or missing value
 		}
-		else
-		{
-			stepperCommands (tokCount, tokens );
-		}
-	else
-	{
-		ESP_LOGD(TAG, "Dispatch - unknown command" );
-		postResponse ("UNKNOWN COMMAND", RESPONSE_UNKNOWN );
 	}
+
+	if (requireArgs (tokCount, tokens, 3, &left, &right ))
+	{   // set left and right eye seperatly
+		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+				EVENT_ACTION_SETLEFT, left, right, nullptr );
+		SwitchBoard::send (msg );
+
+		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+				EVENT_ACTION_SETLEFT, left, right, nullptr );
+		SwitchBoard::send (msg );
+	} else {
+		return;  // error - bad or missing value
+	}
+
+
+	postResponse ("OK", RESPONSE_OK );
 	return;
 }
+
 
 /*
  *
  * Ouptut a a lst of the current settings (SHOW)
  */
-
 void CmdDecoder::showCurSettings() {
 	const char *bufPtr=nullptr;
 
@@ -475,19 +539,23 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
  * This handles any of the 'stepper' commands - either the
  * 'Rot'ational or 'Nodd' commands or requests.
  *
- * @param required - the number of tokens required.
- * @param tokenCount - the number of tokens in the command.
  *
+ * Commands: ROT or NOD followed by commands to StepperMotorController.
+ *
+ *    EStop ENable DIsable SetHome
+ *    get: GAbsolute GRelative GLower  GUpper GT??/ GVersion
+ *    Motion: RHome RLower Rupper   RAbsolute ttttnnnn RRelative ttttnnnn
+ *    set: SLower n   SUpper n  SRamp
  */
 void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 {
 	TASK_NAME destination = TASK_NAME::TEST;
 	Message *msg = nullptr;
-
-	if (!requireArgs (tokCount, tokens, 2, nullptr, nullptr ))
+	char cmdBuf[128];
+	if ( tokCount < 2 )
 	{
-		postResponse ("Missing Argument",
-				RESPONSE_COMMAND_ERRR );
+		postResponse ("ERROR - Missing Argument", RESPONSE_COMMAND_ERRR );
+		return;
 	}
 
 	// Which driver?
@@ -496,8 +564,16 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 	else
 		destination = TASK_NAME::NODD;
 
+	// Rebuild the command string so 'stepperMotor->execute' can decode it.
+	strcpy(cmdBuf, tokens[1]);
+	if (tokCount > 2 )
+	{
+		strcat(cmdBuf," ");
+		strcat(cmdBuf,tokens[2]);
+	}
+
    // Let the 'execute' function handle the specific command.
-	msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, tokens[1]);
+	msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, cmdBuf);
 	SwitchBoard::send(msg);
 	return;
 }
