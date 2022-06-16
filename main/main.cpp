@@ -18,7 +18,7 @@
 #define ENABLE_PWM_DRIVER
 #define ENABLE_WIFI
 // #define ENABLE_SOUND
-// #define ENABLE_JAWBONE
+#define ENABLE_STEPPER
 
 #include "audio/minimp3.h"
 
@@ -91,13 +91,21 @@ void app_main ()
 	}
 #endif
 
+#ifdef ENABLE_PWM_DRIVER
+	// JAW and EYES are on the PWM driver
+	// Hardware does all the work, so this does not have any background task...
+	PwmDriver pwmdriver("PWM");
+#endif
+
 #ifdef ENABLE_SOUND
 	SndPlayer player ("Player" );
 
 	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
 			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
 #endif
-#ifdef ENABLE_JAWBONE
+
+#ifdef ENABLE_STEPPER
+	// Rot and Nod are on the stepper driver
 	StepperDriver stepper("Stepper");
 	xTaskCreatePinnedToCore( StepperDriver::runTask, "Stepper Task", 8192,
 			&stepper, 1, nullptr, ASSIGN_STEPPER_CORE);
@@ -106,4 +114,5 @@ void app_main ()
 	{
 		vTaskDelay (5000 / portTICK_PERIOD_MS ); // Keep me alive
 	}
+
 }

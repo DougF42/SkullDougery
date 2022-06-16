@@ -91,16 +91,18 @@ void StepperDriver::callBack (const Message *msg)
  * We will start it
  */
 void StepperDriver::clockCallback(void *arg) {
-	static BaseType_t xHigherPriorityTaskWoken=pdFALSE;
+	//static BaseType_t xHigherPriorityTaskWoken=pdFALSE;
 
 	StepperDriver *me= (StepperDriver *)arg;
-	xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
+	// xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
+	// xSemaphoreTake(me->mylock, 2);
 	me->nodControl->Run();
 	me->rotControl->Run();
 	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
 	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
 	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
+	// xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
+	// xSemaphoreGive(me->mylock);
 	esp_timer_start_once(me->myTimer, nextTime);
 }
 
@@ -116,8 +118,15 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->nodControl = new StepperMotorController(DIGITAL, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, 0);
-	me->rotControl = new StepperMotorController(NON_DIGITAL,ROTATE_PINA,ROTATE_PINB,ROTATE_PINC,ROTATE_PIND, 0);
+	me->rotControl = new StepperMotorController(NON_DIGITAL, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, 0);
+	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
+	ESP_LOGI(TAG, "ROTATE is registered");
+
+	me->nodControl = new StepperMotorController(NON_DIGITAL, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,    0);
+	// Register us for action
+	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
+	ESP_LOGI(TAG, "NODD is registered");
+
 
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};
@@ -128,12 +137,6 @@ void StepperDriver::runTask(void *param) {
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
 	clockCallback(me);   // First time thru the clock callback.
-
-	// Register us for action
-	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
-	ESP_LOGI(TAG, "NODD is registered");
-	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
-	ESP_LOGI(TAG, "ROTATE is registered");
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

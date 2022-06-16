@@ -34,6 +34,7 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   EnablePin    = pin1;
   DirectionPin = pin2;
   StepPin      = pin3;
+
   motor_pin_1  = pin1;
   motor_pin_2  = pin2;
   motor_pin_3  = pin3;
@@ -45,7 +46,7 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   pinMode(pin2  , OUTPUT);
   pinMode(pin3  , OUTPUT);
   if (driverType==NON_DIGITAL)  pinMode(pin4  , OUTPUT);
-  pinMode(LEDPin, OUTPUT);
+  // if (LEDPin>0) pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
   digitalWrite(pin1, LOW);
@@ -483,6 +484,7 @@ const char * StepperMotorController::GetVersion()
 void StepperMotorController::BlinkLED()
 {
   // Blink onboard LED
+	if (LEDPin <= 0) return; // (ignore if no LED)
   for (int i=0; i<10; i++)
   {
     digitalWrite(LEDPin, HIGH);
@@ -608,7 +610,10 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
   else if (strcmp(command, "GV") == 0)
     return (char *)GetVersion();
   else if (strcmp(command, "BL") == 0)
-    BlinkLED();
+  {
+    if (LEDPin > 0) BlinkLED();
+    else return("E:LED not configured.");
+  }
   else
     return "E:Unknown command";
 
