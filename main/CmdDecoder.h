@@ -63,6 +63,8 @@ protected:
 	void parseCommand();
 	void dispatchCommand(int tokCount, char *tokens[]);
 	void stepperCommands(int tokCount, char *tokens[]);
+	void setEyes        (int tokCount, char *tokens[]);
+	void noArguments(int tokCount, char *tokens[]);
 
 private:
 	void help();

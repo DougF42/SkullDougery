@@ -151,17 +151,29 @@ void PwmDriver::callBack (const Message *msg)
 	uint32_t duty;
 	switch (msg->event)
 	{
+		case (EVENT_ACTION_SETLEFT):
+				duty=msg->value;
+				duty = interpEyes.interp(duty);
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty );
+				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye );
+			break;
+
+		case(EVENT_ACTION_SETRIGHT):
+				duty=msg->value;
+				duty = interpEyes.interp(duty);
+				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, duty );
+				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
+			break;
+
 		case (EVENT_ACTION_SETVALUE):
-			// Set the duty cycle. We do this immediately - I
-			// expect the ledc interface to be fast enough for this to
-			// be okay.
+			// Set the duty cycle, either for eyes or jaw,
+		    // If eyes, this sets both eyes the same from 'value.
 
 #ifdef INCLUDE_FAST
 			if (msg->destination == TASK_NAME::EYES)
-			{
+			{  // Set both eyes to given value
 				duty=msg->value;
 				duty = interpEyes.interp(duty);
-				if (msg->event == EVENT_ACTION_SETVALUE) {
 	//			ESP_LOGD(TAG,
 	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
 	//					msg->value, duty );
@@ -170,7 +182,6 @@ void PwmDriver::callBack (const Message *msg)
 				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye );
 				ledc_update_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye );
-				}
 
 				if (msg->event == EVENT_ACTION_SETDIR) {
 					// TODO: NOT implemented.

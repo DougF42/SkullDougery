@@ -18,8 +18,9 @@
 #include "driver/ledc.h"
 #include "Sequencer/DeviceDef.h"
 #include "Interpolate.h"
-#define EVENT_ACTION_SETDIR 100
-
+#define EVENT_ACTION_SETDIR   100
+#define EVENT_ACTION_SETLEFT  101
+#define EVENT_ACTION_SETRIGHT 102
 class PwmDriver : DeviceDef{
 public:
 	PwmDriver(const char *name);
