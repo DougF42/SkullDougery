@@ -38,10 +38,6 @@
 static const char *TAG = "+++wifi softAP";
 
 
-//TaskHandle_t WiFiHub::udpServerTask;
-//UDPServer WiFiHub::udpsever(TASK_NAME::UDP);
-
-
 /**
  * Watch for events...
  *  NOTE that this listener handles BOTH the HUB and the Access Point modes!!!
@@ -101,8 +97,6 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				// Something happend - we disconnected from hub, or failed to connect
 				ESP_LOGI(TAG, "DISCONNECTED FROM HUB (event). Retry connection." );
 				esp_wifi_connect();
-				// For now, shut down the udp server.
-				// vTaskDelete(me->udpServerTask);
 
 				// Probably need to keep trying
 				break;

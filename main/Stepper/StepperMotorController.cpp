@@ -511,6 +511,8 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
 
   // Set 2-Char Command and parse all commands
   strncpy (command, packet, 2);
+  command[0]=toupper(packet[0]);
+  command[1]=toupper(packet[1]);
   command[2] = 0;
 
   //======================================================

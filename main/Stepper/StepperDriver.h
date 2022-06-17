@@ -33,8 +33,7 @@ private:
 	esp_timer_handle_t myTimer;
 
 	static void clockCallback(void *_me);
-	SemaphoreHandle_t mylock;
-	StaticSemaphore_t  mylocksBuffer;
+	void doOneStep();
 
 };
 

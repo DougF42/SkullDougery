@@ -5,6 +5,7 @@
  *      Author: doug
  *
  */
+#include <ctype.h>
 
 #include "StepperDriver.h"
 #include "esp_timer.h"
@@ -12,9 +13,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "string.h"
+
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
+#include "../Sequencer/Message.h"
 
 
 static const char *TAG="STEPPER DRIVER::";
@@ -24,7 +27,6 @@ StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 	myTimer=0;
 	nodControl=nullptr;
 	rotControl=nullptr;
-	mylock = xSemaphoreCreateBinaryStatic(&mylocksBuffer);
 }
 
 StepperDriver::~StepperDriver ()
@@ -32,12 +34,6 @@ StepperDriver::~StepperDriver ()
 	// Auto-generated destructor stub
 }
 
-
-#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);\
-		esp_timer_stop (myTimer );
-
-#define STARTCLOCK xSemaphoreGive(mylock);\
-		clockCallback (target );
 
 /**
  * This is how messages are delivered to us.
@@ -48,9 +44,10 @@ StepperDriver::~StepperDriver ()
  */
 void StepperDriver::callBack (const Message *msg)
 {
-	STOPCLOCK
+	esp_timer_stop (myTimer );
+
 	StepperMotorController *target=nullptr;
-	Message *resp=nullptr;
+
 	switch (msg->destination)
 	{
 		case (TASK_NAME::NODD):
@@ -67,9 +64,22 @@ void StepperDriver::callBack (const Message *msg)
 	}
 
 	const char *res=target->ExecuteCommand(msg->text);
-	resp=Message::future_Message(msg->response, msg->destination, msg->event, 0, 0, res);
+	Message *resp;
+	if (res[0] == '\0')
+	{   // no resp text means "OK"
+		resp=Message::future_Message(
+			msg->response,
+			msg->destination,
+			msg->event, 0, 0, "OK");
+	} else { // Something to report to caller...
+		resp=Message::future_Message(
+			msg->response,
+			msg->destination,
+			msg->event, 0, 0, res);
+	}
+
 	SwitchBoard::send(resp);
-	STARTCLOCK
+	doOneStep();
 }
 
 
@@ -91,21 +101,31 @@ void StepperDriver::callBack (const Message *msg)
  * We will start it
  */
 void StepperDriver::clockCallback(void *arg) {
-	//static BaseType_t xHigherPriorityTaskWoken=pdFALSE;
-
 	StepperDriver *me= (StepperDriver *)arg;
-	// xSemaphoreTakeFromISR(me->mylock, &xHigherPriorityTaskWoken);
-	// xSemaphoreTake(me->mylock, 2);
-	me->nodControl->Run();
-	me->rotControl->Run();
-	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
-	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
-	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	// xSemaphoreGiveFromISR(me->mylock, &xHigherPriorityTaskWoken);
-	// xSemaphoreGive(me->mylock);
-	esp_timer_start_once(me->myTimer, nextTime);
+	me->doOneStep();
 }
 
+/**
+ *
+ * Do next time step.
+ * NOTE:
+ *     We require that the clock has been stopped befgore entry.
+ *     IF calling from the clock callback, this is done.
+ *     IF calling from the device message callback, THAT function
+ *        must stop the clock BEFORE calling doOneStep.
+ *
+ *     The clock is automatically started by this routine.
+ *
+ */
+void StepperDriver::doOneStep()
+{
+	nodControl->Run();
+	rotControl->Run();
+	uint64_t nextNodTime=nodControl->GetTimeToNextStep();
+	uint64_t nextRotTime=rotControl->GetTimeToNextStep();
+	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	esp_timer_start_once(myTimer, nextTime);
+}
 
 /**
  * This is the 'StepperDriver' task.
