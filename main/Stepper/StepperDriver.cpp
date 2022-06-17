@@ -119,12 +119,16 @@ void StepperDriver::clockCallback(void *arg) {
  */
 void StepperDriver::doOneStep()
 {
+	ESP_LOGD(TAG, "DO ONE STEP...");
 	nodControl->Run();
 	rotControl->Run();
+	uint64_t now = esp_timer_get_time();
 	uint64_t nextNodTime=nodControl->GetTimeToNextStep();
 	uint64_t nextRotTime=rotControl->GetTimeToNextStep();
 	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	esp_timer_start_once(myTimer, nextTime);
+	ESP_LOGD(TAG,"NOW=%lld  nextNodTime=%lld  nextRotTime=%lld  nextTime=%lld",
+			now, nextNodTime, nextRotTime, nextTime);
+	esp_timer_start_once(myTimer, nextTime-now);
 }
 
 /**
