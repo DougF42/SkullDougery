@@ -22,13 +22,24 @@
 //  Direction = digital pin 3 (D3)
 //  Pulse     = digital pin 4 (D4)
 //
-//  A "non-digital" stepper motor driver requires four(4) Arduino pins to operate: A+ A- B+ B-
+//  A "BiPolar" stepper motor driver requires four(4) Arduino pins to operate: A+ A- B+ B-
 //  Using the Arduino NANO board:
 //
 //  A+  = digital pin 5 (D5)
 //  A-  = digital pin 6 (D6)
 //  B+  = digital pin 7 (D7)
 //  B-  = digital pin 8 (D8)
+//
+//  A "Unipolar" stepper motor driver has 5 wires, one of which is a center tap in common with the
+//  two coils.  The 'common' is always connected to +voltage, so to activate half a coil only
+//  one pin needs to be grounded.
+//  On the 28BYJ-48, the wiring Using the Ardiuno NANO board would be:
+//
+//  Blu     = digital pin 5 (D5)
+//  Pink    = digital pin 6 (D6)
+//  Yellow  = digital pin 7 (D7)
+//  Orange  = digital pin 8 (D8)
+//
 //
 //  (GND) should be used for common ground.
 //  Future connections will include LOW and HIGH Limit Switch inputs.
@@ -201,7 +212,8 @@
 enum DriverTypes
 {
   DIGITAL,
-  NON_DIGITAL
+  UNIPOLAR,
+  BIPOLAR
 };
 
 enum MotorStates
@@ -265,7 +277,7 @@ class StepperMotorController
   public:
     StepperMotorController(DriverTypes driverType, int pin1=2, int pin2=3, int pin3=4, int pin4=5, int ledPin=13);
     // For Digital Drivers pin1, pin2, pin3 are for Enable, Direction and Step pins respectively
-    // For Non-Digital Drivers pin1, pin2, pin3, pin4 are for each coil of the motor
+    // For B ipolar and Unipolar Drivers pin1, pin2, pin3, pin4 are for each coil of the motor.
 
     RunReturn_t    Run();  // Keeps the motor running (must be called from your loop() function with no delay)
 

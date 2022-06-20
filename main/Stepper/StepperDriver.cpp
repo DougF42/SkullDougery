@@ -146,11 +146,11 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->rotControl = new StepperMotorController(NON_DIGITAL, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, 0);
+	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, 0);
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
 	ESP_LOGI(TAG, "ROTATE is registered");
 
-	me->nodControl = new StepperMotorController(NON_DIGITAL, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,    0);
+	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,    0);
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
 	ESP_LOGI(TAG, "NODD is registered");

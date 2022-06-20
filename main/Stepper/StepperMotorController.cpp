@@ -16,7 +16,8 @@
 #include "string.h"
 #include "StepperMotorController.h"
 #include "climits"
-
+#include "freertos/FreeRTOS.h"
+#include "esp_log.h"
 //--- Globals ----------------------------------------------
 
 const char * StepperMotorController::Version =
@@ -34,7 +35,6 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   EnablePin    = pin1;
   DirectionPin = pin2;
   StepPin      = pin3;
-
   motor_pin_1  = pin1;
   motor_pin_2  = pin2;
   motor_pin_3  = pin3;
@@ -45,21 +45,22 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   pinMode(pin1  , OUTPUT);
   pinMode(pin2  , OUTPUT);
   pinMode(pin3  , OUTPUT);
-  if (driverType==NON_DIGITAL)  pinMode(pin4  , OUTPUT);
-  // if (LEDPin>0) pinMode(LEDPin, OUTPUT);
+  if ((driverType==UNIPOLAR) || (driverType==BIPOLAR))  pinMode(pin4  , OUTPUT);
+  if (ledPin >= 0) pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
   digitalWrite(pin1, LOW);
   digitalWrite(pin2, LOW);
   digitalWrite(pin3, LOW);
-  if (driverType==NON_DIGITAL)  digitalWrite(pin4, LOW);
+  if ((driverType==UNIPOLAR) || (driverType==BIPOLAR))  digitalWrite(pin4, LOW);
+  if (ledPin >= 0) digitalWrite(LEDPin, LOW);
 
   // If DIGITAL, start with motor disabled
   if (DriverType == DIGITAL)
     digitalWrite(EnablePin, HIGH);
 
 	// Set motor state and step position/timing
-	Homed             = false;
+  Homed             = false;
   MotorState        = DISABLED;
   StepIncrement     = 1L;
   AbsolutePosition  = 0L;
@@ -79,6 +80,7 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   TargetOrSteps     = 0;
   TotalSteps        = 0;
   StepCount         = 0;
+
 }
 
 //=========================================================
@@ -101,112 +103,184 @@ unsigned long  StepperMotorController::GetTimeToNextStep   () {
 //    "RE"  - Range Error (tried to pass a limit)
 //    ""    - Empty string (sitting idle or still running)
 //=========================================================
-RunReturn_t StepperMotorController::Run()
+RunReturn_t StepperMotorController::Run ()
 {
-  RunReturn = RUN_OK;
+	RunReturn = RUN_OK;
 
-  // If motor is RUNNING and it's time for it to step, then issue step pulse
-  if (Homed && MotorState == RUNNING)
-  {
-    // Is it time to step?
-    if (micros() >= NextStepMicros)
-    {
-      // Check range limits
-      NextPosition = AbsolutePosition + StepIncrement;  // +1 for clockwise rotations, -1 for counter-clockwise
-      if (NextPosition < LowerLimit || NextPosition > UpperLimit)
-      {
-        // Next step will be out of range,
-        // So stop motor and return range error
-        MotorState = ENABLED;
-        RunReturn = RUN_RANGE_ERROR;  // Range Error
-      }
-      else  // Perform single step
-      {
-        if (DriverType == DIGITAL)
-        {
-          //=============================================================================
-          // For Digital Stepper Drivers:
-          //   Turn on the Step (Pulse) pin for a short period (pulse width)
-          //   Perform FAST step pulse using direct port register
-          //=============================================================================
+	// If motor is RUNNING and it's time for it to step, then issue step pulse
+	if (Homed && MotorState == RUNNING)
+	{
+		// Is it time to step?
+		if (micros () >= NextStepMicros)
+		{
+			// Check range limits
+			NextPosition = AbsolutePosition + StepIncrement; // +1 for clockwise rotations, -1 for counter-clockwise
+			if (NextPosition < LowerLimit || NextPosition > UpperLimit)
+			{
+				// Next step will be out of range,
+				// So stop motor and return range error
+				MotorState = ENABLED;
+				RunReturn = RUN_RANGE_ERROR;  // Range Error
+			}
+			else  // Perform single step
+			{
+				if (DriverType == DIGITAL)
+				{
+					//=============================================================================
+					// For Digital Stepper Drivers:
+					//   Turn on the Step (Pulse) pin for a short period (pulse width)
+					//   Perform FAST step pulse using direct port register
+					//=============================================================================
 
-          // PORTD |= B00010000;   // Turn on Pulse pin (Arduino NANO Digital Pin 4)
-          // delayMicroseconds (PULSE_WIDTH);
-          // PORTD &= ~B00010000;  // Turn off Pulse pin
+					// PORTD |= B00010000;   // Turn on Pulse pin (Arduino NANO Digital Pin 4)
+					// delayMicroseconds (PULSE_WIDTH);
+					// PORTD &= ~B00010000;  // Turn off Pulse pin
 
-          digitalWrite(StepPin, HIGH);
-          delayMicroseconds(PULSE_WIDTH);
-          digitalWrite(StepPin, LOW);
-        }
-        else
-        {
-          //=============================================================================
-          // For Non-Digital Stepper Drivers:
-          //   Each of the four coils must be turned on/off in sequence
-          //=============================================================================
-          switch (NextPosition % 4)  // For 4-wire stepper motors
-          {
-            case 0:  // 1010
-              digitalWrite(motor_pin_1, HIGH);
-              digitalWrite(motor_pin_2, LOW);
-              digitalWrite(motor_pin_3, HIGH);
-              digitalWrite(motor_pin_4, LOW);
-              break;
-            case 1:  // 0110
-              digitalWrite(motor_pin_1, LOW);
-              digitalWrite(motor_pin_2, HIGH);
-              digitalWrite(motor_pin_3, HIGH);
-              digitalWrite(motor_pin_4, LOW);
-              break;
-            case 2:  // 0101
-              digitalWrite(motor_pin_1, LOW);
-              digitalWrite(motor_pin_2, HIGH);
-              digitalWrite(motor_pin_3, LOW);
-              digitalWrite(motor_pin_4, HIGH);
-              break;
-            case 3:  // 1001
-              digitalWrite(motor_pin_1, HIGH);
-              digitalWrite(motor_pin_2, LOW);
-              digitalWrite(motor_pin_3, LOW);
-              digitalWrite(motor_pin_4, HIGH);
-              break;
-          }
-        }
+					digitalWrite (StepPin, HIGH );
+					delayMicroseconds (PULSE_WIDTH );
+					digitalWrite (StepPin, LOW );
+				}
 
-        // Increment positions
-        AbsolutePosition = NextPosition;
-        DeltaPosition   += StepIncrement;
+				else
+				//=============================================================================
+				// For BIPOLAR Stepper Drivers:
+				//   Each of the four coils must be turned on/off in sequence
+				//=============================================================================
+				if (DriverType == BIPOLAR)
+				{
+					switch (NextPosition % 4)
+					{
+						case 0:  // 1010
+							digitalWrite (motor_pin_1, HIGH );
+							digitalWrite (motor_pin_2, LOW );
+							digitalWrite (motor_pin_3, HIGH );
+							digitalWrite (motor_pin_4, LOW );
+							break;
+						case 1:  // 0110
+							digitalWrite (motor_pin_1, LOW );
+							digitalWrite (motor_pin_2, HIGH );
+							digitalWrite (motor_pin_3, HIGH );
+							digitalWrite (motor_pin_4, LOW );
+							break;
+						case 2:  // 0101
+							digitalWrite (motor_pin_1, LOW );
+							digitalWrite (motor_pin_2, HIGH );
+							digitalWrite (motor_pin_3, LOW );
+							digitalWrite (motor_pin_4, HIGH );
+							break;
+						case 3:  // 1001
+							digitalWrite (motor_pin_1, HIGH );
+							digitalWrite (motor_pin_2, LOW );
+							digitalWrite (motor_pin_3, LOW );
+							digitalWrite (motor_pin_4, HIGH );
+							break;
+					}
+				}
 
-        // Has motor reached the target position?
-        if (AbsolutePosition == TargetPosition)
-        {
-          // Yes, stop motor and indicate completion with position
-          MotorState = ENABLED;
-          RunReturn = RUN_COMPLETE;
-        }
-        else
-        {
-          // No, so continue motion
-          StepCount = abs(DeltaPosition);
-          if (StepCount <= RampSteps)
-          {
-            // Ramping up
-            Velocity += VelocityIncrement;
-          }
-          else if (StepCount > RampDownStep)
-          {
-            // Ramping down
-            Velocity -= VelocityIncrement;
-          }
+				else
+				{
+					//=============================================================================
+					// For UNIPOLAR Stepper Drivers:
+					//   Each of the four coils must be turned on/off in sequence
+					//=============================================================================
+					if (DriverType == UNIPOLAR)
+					{
+						switch (NextPosition % 8)
+						// For 4-wire stepper motors
+						{
+							case (0): //1000
+								digitalWrite (motor_pin_1, HIGH );
+								digitalWrite (motor_pin_2, LOW );
+								digitalWrite (motor_pin_3, LOW );
+								digitalWrite (motor_pin_4, LOW );
+								break;
+							case (1): //1100
+								digitalWrite (motor_pin_1, HIGH );
+								digitalWrite (motor_pin_2, HIGH );
+								digitalWrite (motor_pin_3, LOW );
+								digitalWrite (motor_pin_4, LOW );
+								break;
+							case (2): //0100
+								digitalWrite (motor_pin_1, LOW );
+								digitalWrite (motor_pin_2, HIGH );
+								digitalWrite (motor_pin_3, LOW );
+								digitalWrite (motor_pin_4, LOW );
+								break;
+							case (3): //0110
+								digitalWrite (motor_pin_1, LOW );
+								digitalWrite (motor_pin_2, HIGH );
+								digitalWrite (motor_pin_3, HIGH );
+								digitalWrite (motor_pin_4, LOW );
+								break;
+							case (4): //0010
+								digitalWrite (motor_pin_1, LOW );
+								digitalWrite (motor_pin_2, LOW );
+								digitalWrite (motor_pin_3, HIGH );
+								digitalWrite (motor_pin_4, LOW );
+								break;
+							case (5): //0011
+								digitalWrite (motor_pin_1, LOW );
+								digitalWrite (motor_pin_2, LOW );
+								digitalWrite (motor_pin_3, HIGH );
+								digitalWrite (motor_pin_4, HIGH );
+								break;
+							case (6): //0001
+								digitalWrite (motor_pin_1, LOW );
+								digitalWrite (motor_pin_2, LOW );
+								digitalWrite (motor_pin_3, LOW );
+								digitalWrite (motor_pin_4, HIGH );
+								break;
+							case (7): //1001
+								digitalWrite (motor_pin_1, HIGH );
+								digitalWrite (motor_pin_2, LOW );
+								digitalWrite (motor_pin_3, LOW );
+								digitalWrite (motor_pin_4, HIGH );
+								break;
+						}
+					}
+				}
 
-          // Set time for next step
-          NextStepMicros += 1000000L / Velocity;
-        }
-      }
-    }   // If now >= NextStepMicros
-  }     // if homed & motor_state is running
+				// Increment positions
+				AbsolutePosition = NextPosition;
+				DeltaPosition += StepIncrement;
 
-  return RunReturn;
+				// Has motor reached the target position?
+				if (AbsolutePosition == TargetPosition)
+				{
+					// Yes, stop motor and indicate completion with position
+					MotorState = ENABLED;
+					RunReturn = RUN_COMPLETE;
+				}
+				else
+				{
+					// No, so continue motion
+					StepCount = abs (DeltaPosition );
+					if (StepCount <= RampSteps)
+					{
+						// Ramping up
+						Velocity += VelocityIncrement;
+					}
+					else if (StepCount > RampDownStep)
+					{
+						// Ramping down
+						Velocity -= VelocityIncrement;
+					}
+
+					// Set time for next step
+					if (Velocity != 0)
+					{
+						NextStepMicros += 1000000L / Velocity;
+					}
+					else
+					{
+						NextStepMicros = 1L;
+					}
+				}
+			}
+		}
+	}
+
+	return RunReturn;
 }
 
 //=== startRotation =====================================
@@ -483,8 +557,8 @@ const char * StepperMotorController::GetVersion()
 
 void StepperMotorController::BlinkLED()
 {
-  // Blink onboard LED
-	if (LEDPin <= 0) return; // (ignore if no LED)
+  // Blink onboard LED (if defined)
+  if (LEDPin < 0 ) return;
   for (int i=0; i<10; i++)
   {
     digitalWrite(LEDPin, HIGH);
@@ -504,16 +578,17 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
   char  command[3];
   int   ramp, velocity;
   long  limit, targetOrNumSteps;
-  char  returnString[40];
+  static char  returnString[40];
 
   // Command string must be at least 2 chars
   if (strlen(packet) < 2) return "";
 
   // Set 2-Char Command and parse all commands
-  strncpy (command, packet, 2);
-  command[0]=toupper(packet[0]);
-  command[1]=toupper(packet[1]);
+  // DEF: strncpy (command, packet, 2);
+  command[0]=toupper( packet[0]);
+  command[1]=toupper( packet[1]);
   command[2] = 0;
+
 
   //======================================================
   //  Emergency Stop (ESTOP)
@@ -612,10 +687,7 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
   else if (strcmp(command, "GV") == 0)
     return (char *)GetVersion();
   else if (strcmp(command, "BL") == 0)
-  {
-    if (LEDPin > 0) BlinkLED();
-    else return("E:LED not configured.");
-  }
+    BlinkLED();
   else
     return "E:Unknown command";
 
