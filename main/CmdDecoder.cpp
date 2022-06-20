@@ -270,7 +270,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		else
 		{
 			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
-			msg = Message::future_Message (TASK_NAME::JAW, senderTaskName,
+			msg = Message::create_message (TASK_NAME::JAW, senderTaskName,
 			EVENT_ACTION_SETVALUE, val, 0, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
@@ -285,7 +285,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		else
 		{
 			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
-			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+			msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
 			EVENT_ACTION_SETVALUE, val, val, nullptr );
 			SwitchBoard::send (msg );
 			postResponse ("OK", RESPONSE_OK );
@@ -330,28 +330,28 @@ void CmdDecoder::noArguments(int tokCount, char *tokens[])
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("PAUSE")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0, nullptr);
+		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_PAUSE, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("RUN")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0, nullptr);
+		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_START, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("STOP")) {
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
+		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("EYES")) {
 		// TODO: Report eyeball settings.
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
+		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("SORRY-NOT IMPLEMENTED", RESPONSE_COMMAND_ERRR);
 
 	} else	{
-		msg=Message::future_Message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
+		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("ERROR-Unknown command", RESPONSE_UNKNOWN);
 	}
@@ -375,7 +375,7 @@ void CmdDecoder::setEyes (int tokCount, char *tokens[])
 		if (!requireArgs (tokCount, tokens, 2, &left, nullptr ))
 		{
 			right = left;
-			msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+			msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
 					EVENT_ACTION_SETLEFT, left, right, nullptr );
 			SwitchBoard::send (msg );
 			postResponse("OK", RESPONSE_OK);
@@ -386,11 +386,11 @@ void CmdDecoder::setEyes (int tokCount, char *tokens[])
 
 	if (requireArgs (tokCount, tokens, 3, &left, &right ))
 	{   // set left and right eye seperatly
-		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+		msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
 				EVENT_ACTION_SETLEFT, left, right, nullptr );
 		SwitchBoard::send (msg );
 
-		msg = Message::future_Message (TASK_NAME::EYES, senderTaskName,
+		msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
 				EVENT_ACTION_SETLEFT, left, right, nullptr );
 		SwitchBoard::send (msg );
 	} else {
@@ -575,9 +575,9 @@ void CmdDecoder::stepperCommands (int tokCount, char *tokens[])
 	}
 
    // Let the 'execute' function handle the specific command.1
-	ESP_LOGD(TAG,"stepperCommand: sender is %d",( static_cast<int> (senderTaskName)));
+	//ESP_LOGD(TAG,"stepperCommand: sender is %d",( static_cast<int> (senderTaskName)));
 
-	msg=Message::future_Message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, cmdBuf);
+	msg=Message::create_message(destination, senderTaskName, EVENT_STEPPER_EXECUTE_CMD, 0, 0, cmdBuf);
 	SwitchBoard::send(msg);
 	return;
 }
@@ -616,7 +616,7 @@ void CmdDecoder::callBack (const Message *msg)
 
 			default:
 				snprintf (respBuf, sizeof(respBuf),
-						"Unkown response to command. Source:%d  Event:%d, value:%ld text:%s.",
+						"Unknown response to command. Source:%d  Event:%d, value:%ld text:%s.",
 						TASK_IDX(msg->response), msg->event, msg->value, msg->text );
 				postResponse (respBuf, RESPONSE_OK );
 				break;

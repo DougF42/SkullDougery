@@ -10,7 +10,7 @@
 #include "esp_log.h"
 #include "string.h"
 
-// static const char *TAG="MESSAGE";
+static const char *TAG="MESSAGE";
 
 Message::Message ()
 {
@@ -26,7 +26,7 @@ Message::Message ()
 
 Message::~Message ()
 {
-//	ESP_LOGD(TAG, "Message delete has been called");
+	//	ESP_LOGD(TAG, "Message delete has been called");
 	// TODO Auto-generated destructor stub
 }
 
@@ -54,18 +54,20 @@ Message::Message (const Message &oldObj)
  *                  is copied into the message. Max length 64.
  *
  */
-Message *Message::future_Message(
+Message *Message::create_message(
 		TASK_NAME _target,	TASK_NAME _from, int _event,
 		long int _value, long int _rate, const char *txt) {
 	Message *m=new Message();
 	m->destination= _target;
 	m->response = _from;
-	m->event = _event;
-	m->value = _value;
-	m->rate  = _rate;
+	m->event    = _event;
+	m->value    = _value;
+	m->rate     = _rate;
+	m->text[0]  = '\0';
 	if (txt == nullptr)
 		bzero(m->text, sizeof(m->text));
 	else
+		ESP_LOGD(TAG,"message text length is %u. Message is:%s", strlen(txt), txt);
 		strncpy(m->text, txt, sizeof(m->text));
 
 	return(m);

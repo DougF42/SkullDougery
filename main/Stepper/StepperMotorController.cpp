@@ -203,8 +203,8 @@ RunReturn_t StepperMotorController::Run()
           NextStepMicros += 1000000L / Velocity;
         }
       }
-    }
-  }
+    }   // If now >= NextStepMicros
+  }     // if homed & motor_state is running
 
   return RunReturn;
 }

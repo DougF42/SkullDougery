@@ -65,25 +65,25 @@ void StepperDriver::callBack (const Message *msg)
 
 	const char *res=target->ExecuteCommand(msg->text);
 	Message *resp;
-	if (res[0] == '\0')
+	ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
+
+	if ((res==nullptr) || (res[0] == '\0'))
 	{   // no resp text means "OK"
-		resp=Message::future_Message(
+		resp=Message::create_message(
 			msg->response,
 			msg->destination,
 			msg->event, 0, 0, "OK");
 	} else { // Something to report to caller...
-		resp=Message::future_Message(
+		resp=Message::create_message(
 			msg->response,
 			msg->destination,
 			msg->event, 0, 0, res);
 	}
 
 	SwitchBoard::send(resp);
+	esp_timer_stop(myTimer);
 	doOneStep();
 }
-
-
-
 
 
 /**
@@ -93,10 +93,6 @@ void StepperDriver::callBack (const Message *msg)
  * We *could* define two separate callbacks (with different timers),
  * but being lazy one timer handles both.
  *
- * Note that on occasion we can be called from the message
- * handler, to force an unschedualed loop after a
- * command is issued.
- *
  * In all cases, we expect the timer to be stopped upon entry.
  * We will start it
  */
@@ -105,12 +101,14 @@ void StepperDriver::clockCallback(void *arg) {
 	me->doOneStep();
 }
 
+
 /**
  *
  * Do next time step.
+ *
  * NOTE:
  *     We require that the clock has been stopped befgore entry.
- *     IF calling from the clock callback, this is done.
+ *     IF called from the clock callback, this is automatic.
  *     IF calling from the device message callback, THAT function
  *        must stop the clock BEFORE calling doOneStep.
  *
@@ -123,12 +121,18 @@ void StepperDriver::doOneStep()
 	nodControl->Run();
 	rotControl->Run();
 	uint64_t now = esp_timer_get_time();
-	uint64_t nextNodTime=nodControl->GetTimeToNextStep();
-	uint64_t nextRotTime=rotControl->GetTimeToNextStep();
+
+	uint64_t nextNodTime=nodControl->GetTimeToNextStep() - now;
+	ESP_LOGD(TAG, "NOW is %llu   timetonext NOD is %lu  nextNodTime=%llu",
+			now, nodControl->GetTimeToNextStep(), nextNodTime);
+
+	uint64_t nextRotTime=rotControl->GetTimeToNextStep() - now;
 	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	nextTime = (nextTime > 5000000LL)?5000000LL:nextTime;
 	ESP_LOGD(TAG,"NOW=%lld  nextNodTime=%lld  nextRotTime=%lld  nextTime=%lld",
 			now, nextNodTime, nextRotTime, nextTime);
-	esp_timer_start_once(myTimer, nextTime-now);
+
+	esp_timer_start_once(myTimer, nextTime);
 }
 
 /**
