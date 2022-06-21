@@ -13,6 +13,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "string.h"
+#include "Arduino.h"
 
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
@@ -21,10 +22,10 @@
 
 
 static const char *TAG="STEPPER DRIVER::";
+esp_timer_handle_t  StepperDriver::myTimer=nullptr;
 
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
-	myTimer=0;
 	nodControl=nullptr;
 	rotControl=nullptr;
 }
@@ -105,38 +106,54 @@ void StepperDriver::clockCallback(void *arg) {
 /**
  *
  * Do next time step.
+ *  This just calls 'run' for eacho of the running tasks, then
+ *  looks at each one's 'next step' time and starts a one-shot
+ *  timer for the shortest period.
  *
  * NOTE:
- *     We require that the clock has been stopped befgore entry.
+ *     We require that the on-shot timer has been stopped before entry.
  *     IF called from the clock callback, this is automatic.
- *     IF calling from the device message callback, THAT function
- *        must stop the clock BEFORE calling doOneStep.
+ *     IF calling from the anywhere else, THAT function
+ *        must ensure that the clock is stopped BEFORE calling doOneStep.
  *
  *     The clock is automatically started by this routine.
  *
  */
 void StepperDriver::doOneStep()
 {
-	ESP_LOGD(TAG, "DO ONE STEP...");
-	nodControl->Run();
-	rotControl->Run();
-	uint64_t now = esp_timer_get_time();
+	RunReturn_t nodRet = nodControl->Run();
 
-	uint64_t nextNodTime=nodControl->GetTimeToNextStep() - now;
-	ESP_LOGD(TAG, "NOW is %llu   timetonext NOD is %lu  nextNodTime=%llu",
-			now, nodControl->GetTimeToNextStep(), nextNodTime);
+	RunReturn_t rotRet = rotControl->Run();
 
-	uint64_t nextRotTime=rotControl->GetTimeToNextStep() - now;
-	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	nextTime = (nextTime > 5000000LL)?5000000LL:nextTime;
-	ESP_LOGD(TAG,"NOW=%lld  nextNodTime=%lld  nextRotTime=%lld  nextTime=%lld",
-			now, nextNodTime, nextRotTime, nextTime);
+	// NOTE: We must use micros here from arduino.h, because it
+	//       truncates time down to unsigned long - as used by
+	//       the Arduino library.
+	unsigned long now = micros();
 
-	esp_timer_start_once(myTimer, nextTime);
+	unsigned long nextNodTime=nodControl->GetTimeToNextStep();
+	nextNodTime = (nextNodTime > now)? nextNodTime - now: 2^63;
+
+	unsigned long nextRotTime=rotControl->GetTimeToNextStep();
+	nextRotTime = (nextRotTime > now)? nextRotTime - now: 2^63;
+
+//	ESP_LOGD(TAG, "NOW is %lu.  NextStepAt: %ld   ROT Interval: %lu",
+//			now, rotControl->GetTimeToNextStep(), nextRotTime);
+
+	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	delayForUsec = (delayForUsec > 5000000LL) ? 5000000LL:delayForUsec;
+
+	esp_timer_start_once(myTimer, delayForUsec);
 }
 
 /**
  * This is the 'StepperDriver' task.
+ *
+ * To quote a much-overused line - there can be only one instance
+ * of this!
+ *
+ *  All stepper drivers are initialized from here, and handled
+ *     internally.
+ *
  * Apart from some intialization, it doesnt really
  * do anything but keep the task alive so that the
  * timer interrupt - the real workhorse - can do its thing.
@@ -146,11 +163,11 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, 0);
+	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, STEPPER_NO_LED);
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
 	ESP_LOGI(TAG, "ROTATE is registered");
 
-	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,    0);
+	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,  STEPPER_NO_LED);
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
 	ESP_LOGI(TAG, "NODD is registered");
@@ -164,7 +181,7 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
-	clockCallback(me);   // First time thru the clock callback.
+	me->doOneStep();   // First time thru - start the clock.
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

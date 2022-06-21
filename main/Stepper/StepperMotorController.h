@@ -208,7 +208,7 @@
 
 #define HOME_LIMIT_SPEED  4000L
 #define PULSE_WIDTH       5     // 5-microseconds (check your driver's pulse width requirement)
-
+#define STEPPER_NO_LED   -1
 enum DriverTypes
 {
   DIGITAL,

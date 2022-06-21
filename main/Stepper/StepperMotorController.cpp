@@ -13,11 +13,11 @@
 //==================================================================================================================
 
 #include "Arduino.h"
+#include "esp_log.h"
 #include "string.h"
 #include "StepperMotorController.h"
 #include "climits"
 #include "freertos/FreeRTOS.h"
-#include "esp_log.h"
 //--- Globals ----------------------------------------------
 
 const char * StepperMotorController::Version =
@@ -46,14 +46,14 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
   pinMode(pin2  , OUTPUT);
   pinMode(pin3  , OUTPUT);
   if ((driverType==UNIPOLAR) || (driverType==BIPOLAR))  pinMode(pin4  , OUTPUT);
-  if (ledPin >= 0) pinMode(LEDPin, OUTPUT);
+  if (ledPin != STEPPER_NO_LED) pinMode(LEDPin, OUTPUT);
 
   // Initialize pins
   digitalWrite(pin1, LOW);
   digitalWrite(pin2, LOW);
   digitalWrite(pin3, LOW);
   if ((driverType==UNIPOLAR) || (driverType==BIPOLAR))  digitalWrite(pin4, LOW);
-  if (ledPin >= 0) digitalWrite(LEDPin, LOW);
+  if (ledPin != STEPPER_NO_LED) digitalWrite(LEDPin, LOW);
 
   // If DIGITAL, start with motor disabled
   if (DriverType == DIGITAL)
@@ -103,6 +103,7 @@ unsigned long  StepperMotorController::GetTimeToNextStep   () {
 //    "RE"  - Range Error (tried to pass a limit)
 //    ""    - Empty string (sitting idle or still running)
 //=========================================================
+
 RunReturn_t StepperMotorController::Run ()
 {
 	RunReturn = RUN_OK;
@@ -358,7 +359,8 @@ void StepperMotorController::Disable ()
 	  digitalWrite(motor_pin_1, LOW);
 	  digitalWrite(motor_pin_2, LOW);
 	  digitalWrite(motor_pin_3, LOW);
-	  digitalWrite(motor_pin_4, LOW);
+	  if ((DriverType==UNIPOLAR) || (DriverType==BIPOLAR))
+		  digitalWrite(motor_pin_4, LOW);
   }
 
   MotorState = DISABLED;
@@ -664,7 +666,6 @@ const char * StepperMotorController::ExecuteCommand(const char *packet)
     velString[4] = 0;
     velocity = strtol(velString, NULL, 10);
     targetOrNumSteps = strtol(packet+6, NULL, 10);  // Target position or number of steps is remainder of packet
-
     if (strcmp(command, "RA") == 0)
       RotateAbsolute(targetOrNumSteps, velocity);
     else

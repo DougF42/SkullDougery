@@ -63,12 +63,11 @@ Message *Message::create_message(
 	m->event    = _event;
 	m->value    = _value;
 	m->rate     = _rate;
-	m->text[0]  = '\0';
-	if (txt == nullptr)
-		bzero(m->text, sizeof(m->text));
-	else
+	bzero(m->text, sizeof(m->text));
+	if ((txt != nullptr)&&(*txt!='\0'))
+	{
 		ESP_LOGD(TAG,"message text length is %u. Message is:%s", strlen(txt), txt);
-		strncpy(m->text, txt, sizeof(m->text));
-
+		strncpy(m->text, txt, sizeof(m->text)-1);
+	}
 	return(m);
 }

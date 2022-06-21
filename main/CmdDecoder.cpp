@@ -345,7 +345,7 @@ void CmdDecoder::noArguments(int tokCount, char *tokens[])
 		postResponse("OK", RESPONSE_OK);
 
 	} else if (ISCMD("EYES")) {
-		// TODO: Report eyeball settings.
+		// Report eyeball settings.
 		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
 		SwitchBoard::send(msg);
 		postResponse("SORRY-NOT IMPLEMENTED", RESPONSE_COMMAND_ERRR);
