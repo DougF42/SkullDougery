@@ -121,9 +121,9 @@ void StepperDriver::clockCallback(void *arg) {
  */
 void StepperDriver::doOneStep()
 {
-	RunReturn_t nodRet = nodControl->Run();
-
-	RunReturn_t rotRet = rotControl->Run();
+	//nodControl->Dump();
+	nodControl->Run();
+	rotControl->Run();
 
 	// NOTE: We must use micros here from arduino.h, because it
 	//       truncates time down to unsigned long - as used by
@@ -140,7 +140,7 @@ void StepperDriver::doOneStep()
 //			now, rotControl->GetTimeToNextStep(), nextRotTime);
 
 	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	delayForUsec = (delayForUsec > 5000000LL) ? 5000000LL:delayForUsec;
+	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
 
 	esp_timer_start_once(myTimer, delayForUsec);
 }

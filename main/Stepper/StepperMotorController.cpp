@@ -83,6 +83,43 @@ StepperMotorController::StepperMotorController(DriverTypes driverType, int pin1,
 
 }
 
+/**
+ * @brief Dump all class variables to LOGD.
+ * DEF: Remove before flight!
+ */
+const static char *DTAG="STEPPER:";
+
+void StepperMotorController::Dump()
+{
+	ESP_LOGD("- - -","- - -");
+	// TIME:
+	ESP_LOGD(DTAG, "NOW=%ld   extStepMicros=%ld  NextStep-NOW=%ld ", micros(), NextStepMicros, NextStepMicros-micros());
+
+	// POSITION
+	ESP_LOGD(DTAG, "POSITION: AbsPos=%ld  DeltaPos=%ld  Target=%ld ",
+			AbsolutePosition, DeltaPosition, TargetPosition);
+
+	ESP_LOGD(DTAG,"LIMITS: LowerLimit=%ld  UpperLimit=%ld", LowerLimit, UpperLimit);
+
+	LowerLimit        = -2000000000L;
+	UpperLimit        =  2000000000L;
+
+	  // VELOCITY
+	ESP_LOGD(DTAG, "VELOCITY1: MaxVel=%ld  Velocity=%ld  RampSteps=%ld RampDownStep=%ld",
+			MaxVelocity, Velocity, RampSteps, RampDownStep);
+
+	ESP_LOGD(DTAG, "VELOCITY2: StepIncrement %ld VelocityIncr: %ld ",
+			StepIncrement, VelocityIncrement);
+
+	ESP_LOGD(DTAG, "XXX: TargetOrSteps %ld    TotalSteps %ld  StepCount %ld",
+	  TargetOrSteps ,	  TotalSteps ,	  StepCount);
+
+
+	// OTHER
+	ESP_LOGD(DTAG, "Homed=%d  MotorState=%d RunReturn=%d",
+			Homed, static_cast<int>(MotorState), static_cast<int>(RunReturn));
+	ESP_LOGD("- - -","- - -");
+}
 //=========================================================
 // GetTimeToNextStep
 //    This is used to determine how long before we need
@@ -118,6 +155,7 @@ RunReturn_t StepperMotorController::Run ()
 			NextPosition = AbsolutePosition + StepIncrement; // +1 for clockwise rotations, -1 for counter-clockwise
 			if (NextPosition < LowerLimit || NextPosition > UpperLimit)
 			{
+				ESP_LOGD("DRIVER:","OUT-OF-RANGE");
 				// Next step will be out of range,
 				// So stop motor and return range error
 				MotorState = ENABLED;
@@ -158,18 +196,21 @@ RunReturn_t StepperMotorController::Run ()
 							digitalWrite (motor_pin_4, LOW );
 							break;
 						case 1:  // 0110
+						case -3:
 							digitalWrite (motor_pin_1, LOW );
 							digitalWrite (motor_pin_2, HIGH );
 							digitalWrite (motor_pin_3, HIGH );
 							digitalWrite (motor_pin_4, LOW );
 							break;
 						case 2:  // 0101
+						case -2:
 							digitalWrite (motor_pin_1, LOW );
 							digitalWrite (motor_pin_2, HIGH );
 							digitalWrite (motor_pin_3, LOW );
 							digitalWrite (motor_pin_4, HIGH );
 							break;
 						case 3:  // 1001
+						case -1:
 							digitalWrite (motor_pin_1, HIGH );
 							digitalWrite (motor_pin_2, LOW );
 							digitalWrite (motor_pin_3, LOW );
@@ -195,43 +236,57 @@ RunReturn_t StepperMotorController::Run ()
 								digitalWrite (motor_pin_3, LOW );
 								digitalWrite (motor_pin_4, LOW );
 								break;
+
 							case (1): //1100
+							case(-7):
 								digitalWrite (motor_pin_1, HIGH );
 								digitalWrite (motor_pin_2, HIGH );
 								digitalWrite (motor_pin_3, LOW );
 								digitalWrite (motor_pin_4, LOW );
 								break;
+
 							case (2): //0100
+							case(-6):
 								digitalWrite (motor_pin_1, LOW );
 								digitalWrite (motor_pin_2, HIGH );
 								digitalWrite (motor_pin_3, LOW );
 								digitalWrite (motor_pin_4, LOW );
 								break;
+
 							case (3): //0110
+							case (-5):
 								digitalWrite (motor_pin_1, LOW );
 								digitalWrite (motor_pin_2, HIGH );
 								digitalWrite (motor_pin_3, HIGH );
 								digitalWrite (motor_pin_4, LOW );
 								break;
+
 							case (4): //0010
+							case (-4):
 								digitalWrite (motor_pin_1, LOW );
 								digitalWrite (motor_pin_2, LOW );
 								digitalWrite (motor_pin_3, HIGH );
 								digitalWrite (motor_pin_4, LOW );
 								break;
+
 							case (5): //0011
+							case (-3):
 								digitalWrite (motor_pin_1, LOW );
 								digitalWrite (motor_pin_2, LOW );
 								digitalWrite (motor_pin_3, HIGH );
 								digitalWrite (motor_pin_4, HIGH );
 								break;
+
 							case (6): //0001
+							case (-2):
 								digitalWrite (motor_pin_1, LOW );
 								digitalWrite (motor_pin_2, LOW );
 								digitalWrite (motor_pin_3, LOW );
 								digitalWrite (motor_pin_4, HIGH );
 								break;
+
 							case (7): //1001
+							case(-1):
 								digitalWrite (motor_pin_1, HIGH );
 								digitalWrite (motor_pin_2, LOW );
 								digitalWrite (motor_pin_3, LOW );
