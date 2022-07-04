@@ -26,12 +26,6 @@
 // takes care of any need to watch the run state of a simulation.
 #define MOTION_SEQ_TIME 101
 
-// This message simply causes us to reset the skull to 0,0 and start the sequence over.
-#define MOTION_SEQ_RESET 102
-
-#define MOTION_EVENT_NOD 'n'
-#define MOTION_EVENT_ROT 'r'
-
 class MotionSequencer: public DeviceDef {
 private:
 
@@ -41,17 +35,23 @@ private:
 		unsigned char event; // N (od)_ or R(ot)
 		unsigned char value;  // Value to set the device to.
 		Sequence *next;  // Pointer to next
+		Sequence *prev;  // Pointer to previous
 		Sequence(unsigned long _time, unsigned char _event, unsigned char *_value)
 		{
 			tstamp = _time;
 			event  = _event;
 			value  = _value;
 			next   = nullptr;
+			prev   = nullptr;
 		}
 
 	};
+
 	Sequence *firstSeq;   // First in the sequence
+	Sequence *nextSeqToPerform; // If done in sequence, this should be next
 	int seqListSize;
+
+	void MotionSequencer::findNextAction(unsigned int targetTime, Sequence *ptr);
 
 public:
 	MotionSequencer();

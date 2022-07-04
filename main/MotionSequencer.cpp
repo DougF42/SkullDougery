@@ -19,6 +19,7 @@
 #include "Sequencer/DeviceDef.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
+#include "MotionSequencer.h"
 
 MotionSequencer::MotionSequencer(const char *name) : Device(name) {
 	// TODO Auto-generated constructor stub
@@ -82,6 +83,14 @@ bool MotionSequencer::loadFile(const char *fname)
 			ESP_LOGE("MotionSequencer", "Format Error detected while reading sequence control file at line %d ", lineno);
 			continue;
 		}
+
+		if (timeStamp < curSeq->tstamp)
+		{
+			ESP_LOGE("MotionSequencer", "Sequence error: Time of line %d is less than previous!", lineno);
+			continue;
+		}
+
+
 		if ( firstSeq == nullptr)
 		{
 			firstSeq = new Sequence(timeStamp, action, value);
@@ -89,8 +98,10 @@ bool MotionSequencer::loadFile(const char *fname)
 		} else
 		{
 			curSeq->next = new Sequence(timeStamp, action, value);
+			(curSeq->next)->prev = curSeq;
 			curSeq=curSeq->next;
 		}
+
 	}  // End of while
 	free(linptr);
 
@@ -98,6 +109,39 @@ bool MotionSequencer::loadFile(const char *fname)
 	{
 		// AN ERROR OCCURED - report it!
 	}
+	// All set....
+	nextSeqToPerform = firstSeq;
+}
+
+/**
+ * Find the next action to be performed.
+ *
+ * Locate the first action that can be performed at this
+ * time.
+ *
+ * @param targetTime - the current 'time' (i.e.: sample number)
+ * @param ptr  - pointer to 'current' Sequencer object.
+ */
+ void MotionSequencer::findNextAction(unsigned int targetTime, Sequence *ptr)
+ {
+	 Sequence *seq = ptr;
+	 // move backwards until prev
+	 while (seq != nullptr)
+	 {
+		 if (seq < targetTime) break;
+		 seq=seq->prev;
+	 } // Try next one
+	 ptr=seq;
+	 return;
+}
+
+/**
+ * This is where we receive messages about when to take action
+ */
+void MotionSequencer::callBack(const Message *msg)
+{
+	// We only respond to one event type...
+	if (msg->event != MOTION_SEQ_TIME) return;
 
 
 }
