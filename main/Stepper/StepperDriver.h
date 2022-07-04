@@ -32,12 +32,10 @@ public:
 private:
 	StepperMotorController *nodControl;
 	StepperMotorController *rotControl;
-	esp_timer_handle_t myTimer;
+	static esp_timer_handle_t myTimer;
 
 	static void clockCallback(void *_me);
-	SemaphoreHandle_t mylock;
-	StaticSemaphore_t  mylocksBuffer;
-	bool timer_state;
+	void doOneStep();
 
 };
 

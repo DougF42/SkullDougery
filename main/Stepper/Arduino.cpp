@@ -21,9 +21,11 @@ static const char *TAG="Arduino.cpp-";
  */
 void pinMode(int pin,  enum IOMODE mode) {
 	gpio_config_t cfg ={};
-	if (pin==0) return;
 
-	cfg.pin_bit_mask= (1<<pin);  // set the pin number
+	if (pin==0) return;
+	ESP_LOGI(TAG,"set pin mode for pin %d to %d",	pin, mode);
+
+	cfg.pin_bit_mask= (1LL << pin);  // set the pin number
 	cfg.pull_down_en=GPIO_PULLDOWN_DISABLE;
 
 	if (mode == INPUT)

@@ -26,7 +26,7 @@ Message::Message ()
 
 Message::~Message ()
 {
-//	ESP_LOGD(TAG, "Message delete has been called");
+	//	ESP_LOGD(TAG, "Message delete has been called");
 	// TODO Auto-generated destructor stub
 }
 
@@ -46,33 +46,30 @@ Message::Message (const Message &oldObj)
 /**
  * Factory to create a message to be executed at a particular
  * time in the future.
- * @param target  - what driver should handle this?
- * @param from    - what task isthis from?
- * @param event   - What event?
- * @param value   - the first argument for this event
- * @param rate    - the second argument for this event
- * @param txt     - If non-null, then this null-terminated text
+ * @param _target - who to send message to
+ * @param _from   - who task is this from?
+ * @param _event  - What event?
+ * @param _value  - the first argument for this event
+ * @param _rate   - the second argument for this event
+ * @param  txt    - If non-null, then this null-terminated text
  *                  is copied into the message. Max length 64.
  *
  */
-Message *Message::future_Message( TASK_NAME _target,  TASK_NAME _from,
-		                          int _event,
-								  long int _value, long int _rate,
-								  const char *txt) {
-	if (txt!=nullptr) ESP_LOGD(TAG, "txt argument is %s", txt);
+Message *Message::create_message(
+		TASK_NAME _target,	TASK_NAME _from, int _event,
+		long int _value, long int _rate, const char *txt) {
 	Message *m=new Message();
-	m->event = _event;
 	m->destination= _target;
 	m->response = _from;
-	m->value = _value;
-	m->rate  = _rate;
-	if (txt == nullptr) {
-		bzero(m->text, sizeof(m->text));
-	}
-	else
+	m->event    = _event;
+	m->value    = _value;
+	m->rate     = _rate;
+	bzero(m->text, sizeof(m->text));
+	if ((txt != nullptr)&&(*txt!='\0'))
 	{
-		strncpy(m->text, txt, sizeof(m->text));
-		m->text[sizeof(m->text)-1]='\0';
+		ESP_LOGD(TAG,"message text length is %u. Message is:%s", strlen(txt), txt);
+		strncpy(m->text, txt, sizeof(m->text)-1);
+>>>>>>> addStepper
 	}
 	return(m);
 }

@@ -7,18 +7,10 @@
 // that a integer conversion failed.
 #define BAD_NUMBER 0xFFFFEFE
 
-#define RESET_SWITCH GPIO_NUM_33
+#define RESET_SWITCH GPIO_NUM_5
 
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
-
-// Pre-defined network configs (because Im lazy!)
-// DEFINE ONE (and only one) OF THESE!!!
-#define NET_NYOWNHUB
-//#define NET_DOUGSHOME
-//#define NET_MAKERSLAIR
-
-
 
 // comment this out if you want to use the internal DAC
 //#define USE_I2S
@@ -65,8 +57,8 @@ extern i2s_pin_config_t i2s_speaker_pins;
 // NOD - stepper
 #define NOD_PINA GPIO_NUM_23
 #define NOD_PINB GPIO_NUM_22
-#define NOD_PINC GPIO_NUM_19
-#define NOD_PIND GPIO_NUM_21
+#define NOD_PINC GPIO_NUM_32
+#define NOD_PIND GPIO_NUM_33
 
 // ROTATE - stepper
 #define ROTATE_PINA GPIO_NUM_17

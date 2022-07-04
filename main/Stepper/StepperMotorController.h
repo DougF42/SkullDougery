@@ -208,7 +208,7 @@
 
 #define HOME_LIMIT_SPEED  4000L
 #define PULSE_WIDTH       5     // 5-microseconds (check your driver's pulse width requirement)
-
+#define STEPPER_NO_LED   -1
 enum DriverTypes
 {
   DIGITAL,
@@ -307,7 +307,8 @@ class StepperMotorController
     void           BlinkLED            ();                                      // Blink the onboard LED to indicate identification
     unsigned long  GetTimeToNextStep   ();                                      // How long before the next step...
 
-    const char *   ExecuteCommand      (const char *command);                         // Execute a stepper motor function by string command (see notes above)
+    const char *   ExecuteCommand      (const char *command);                   // Execute a stepper motor function by string command (see notes above)
+    void           Dump                ();                                         // DEF: Remove before flight! Dump all variables.
 };
 
 #endif

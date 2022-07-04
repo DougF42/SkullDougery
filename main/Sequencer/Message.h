@@ -64,7 +64,7 @@ public:
 	                                // IF this is a response, the originator of the response message.
 
 	// This message to send simple messages, with no response
-	static Message *future_Message(TASK_NAME target, TASK_NAME from,
+	static Message *create_message(TASK_NAME target, TASK_NAME from,
 			int _event, long int val, long int rate, const char *txt=nullptr);
 
 	int event;           // A 'valid' event for the device. If the device receives

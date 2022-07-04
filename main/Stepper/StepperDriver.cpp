@@ -5,6 +5,7 @@
  *      Author: doug
  *
  */
+#include <ctype.h>
 
 #include "StepperDriver.h"
 #include "esp_timer.h"
@@ -12,24 +13,24 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "string.h"
+#include "Arduino.h"
+
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
+#include "../Sequencer/Message.h"
 
 // The rate (in uSeconds) that 'run' will be called.
 #define CLOCK_RATE 500
 
 static const char *TAG="STEPPER DRIVER::";
-static volatile unsigned long maxInterval=0;
-static unsigned long then=0;
+
+esp_timer_handle_t  StepperDriver::myTimer=nullptr;
 
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
-	myTimer=0;
 	nodControl=nullptr;
 	rotControl=nullptr;
-	mylock = xSemaphoreCreateBinaryStatic(&mylocksBuffer);
-	timer_state=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -38,10 +39,6 @@ StepperDriver::~StepperDriver ()
 }
 
 
-//#define STOPCLOCK  xSemaphoreTake(mylock, portMAX_DELAY);
-#define STOPCLOCK
-//#define STARTCLOCK xSemaphoreGive(mylock);
-#define STARTCLOCK
 /**
  * This is how messages (commands) are delivered to us.
  *
@@ -51,10 +48,11 @@ StepperDriver::~StepperDriver ()
  */
 void StepperDriver::callBack (const Message *msg)
 {
-	STOPCLOCK
-	StepperMotorController *target = nullptr;
-	Message *respMsg = nullptr;
-	if (msg->event == EVENT_GET_TIME)
+	esp_timer_stop (myTimer );
+
+	StepperMotorController *target=nullptr;
+
+	switch (msg->destination)
 	{
 		ESP_LOGD(TAG, "STEPPER TIME INTERVAL %ld", maxInterval );
 		maxInterval = 0L;
@@ -64,31 +62,26 @@ void StepperDriver::callBack (const Message *msg)
 		controlTimer(msg->value!=0);
 	}
 
-	else if (msg->event == EVENT_STEPPER_EXECUTE_CMD)
-	{
-		switch (msg->destination)
-		{
-			case (TASK_NAME::NODD):
-				target = nodControl;
-				break;
+	const char *res=target->ExecuteCommand(msg->text);
+	Message *resp;
+	ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
 
-			case (TASK_NAME::ROTATE):
-				target = rotControl;
-				break;
-
-			default:
-				ESP_LOGE(TAG,
-						"callback - panic - this cant happen - CALL THE STUPID PROGRAMMER" );
-				return;
-		}
-
-		const char *respText = target->ExecuteCommand (msg->text );
-		ESP_LOGD(TAG, "Response:%s", respText );
-		respMsg = Message::future_Message (msg->response, msg->destination,
-				msg->event, 0L, 0L, respText );
-		SwitchBoard::send (respMsg );
-		STARTCLOCK
+	if ((res==nullptr) || (res[0] == '\0'))
+	{   // no resp text means "OK"
+		resp=Message::create_message(
+			msg->response,
+			msg->destination,
+			msg->event, 0, 0, "OK");
+	} else { // Something to report to caller...
+		resp=Message::create_message(
+			msg->response,
+			msg->destination,
+			msg->event, 0, 0, res);
 	}
+
+	SwitchBoard::send(resp);
+	esp_timer_stop(myTimer);
+	doOneStep();
 }
 
 
@@ -99,30 +92,12 @@ void StepperDriver::callBack (const Message *msg)
  * We *could* define two separate callbacks (with different timers),
  * but being lazy one timer handles both.
  *
- * Note that on occasion we can be called from the message
- * handler, to force an unschedualed loop after a
- * command is issued.
- *
  * In all cases, we expect the timer to be stopped upon entry.
  * We will start it
  */
 void StepperDriver::clockCallback(void *arg) {
 	StepperDriver *me= (StepperDriver *)arg;
-	unsigned long now=esp_timer_get_time();
-	maxInterval = (maxInterval > (now-then))? maxInterval:now-then;
-	then=now;
-//	uint64_t now= esp_timer_get_time();
-//	xSemaphoreTake(me->mylock, 3);
-	me->nodControl->Run();
-	me->rotControl->Run();
-
-//	uint64_t nextNodTime=me->nodControl->GetTimeToNextStep();
-//	uint64_t nextRotTime=me->rotControl->GetTimeToNextStep();
-//	uint64_t nextTime=(nextNodTime < nextRotTime)? nextNodTime-now:nextRotTime-now;
-
-//	xSemaphoreGive(me->mylock);
-//	esp_timer_start_once(me->myTimer, nextTime-now);
-
+	me->doOneStep();
 }
 
 /**
@@ -147,7 +122,56 @@ void StepperDriver::controlTimer(bool flag) {
 }
 
 /**
+ *
+ * Do next time step.
+ *  This just calls 'run' for eacho of the running tasks, then
+ *  looks at each one's 'next step' time and starts a one-shot
+ *  timer for the shortest period.
+ *
+ * NOTE:
+ *     We require that the on-shot timer has been stopped before entry.
+ *     IF called from the clock callback, this is automatic.
+ *     IF calling from the anywhere else, THAT function
+ *        must ensure that the clock is stopped BEFORE calling doOneStep.
+ *
+ *     The clock is automatically started by this routine.
+ *
+ */
+void StepperDriver::doOneStep()
+{
+	//nodControl->Dump();
+	nodControl->Run();
+	rotControl->Run();
+
+	// NOTE: We must use micros here from arduino.h, because it
+	//       truncates time down to unsigned long - as used by
+	//       the Arduino library.
+	unsigned long now = micros();
+
+	unsigned long nextNodTime=nodControl->GetTimeToNextStep();
+	nextNodTime = (nextNodTime > now)? nextNodTime - now: 2^63;
+
+	unsigned long nextRotTime=rotControl->GetTimeToNextStep();
+	nextRotTime = (nextRotTime > now)? nextRotTime - now: 2^63;
+
+//	ESP_LOGD(TAG, "NOW is %lu.  NextStepAt: %ld   ROT Interval: %lu",
+//			now, rotControl->GetTimeToNextStep(), nextRotTime);
+
+	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
+	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
+
+	esp_timer_start_once(myTimer, delayForUsec);
+}
+
+/**
  * This is the 'StepperDriver' task.
+ *
+ * To quote a much-overused line - there can be only one instance
+ * of this!
+ *
+ *  All stepper drivers are initialized from here, and handled
+ *     internally.
+ *
  * Apart from some intialization, it doesnt really
  * do anything but keep the task alive so that the
  * timer interrupt - the real workhorse - can do its thing.
@@ -157,8 +181,14 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 
 	// initialize the controllers
-	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA ,NOD_PINB, NOD_PINC, NOD_PIND, -1);
-	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA,ROTATE_PINB,ROTATE_PINC,ROTATE_PIND, -1);
+	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, STEPPER_NO_LED);
+	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
+	ESP_LOGI(TAG, "ROTATE is registered");
+
+	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,  STEPPER_NO_LED);
+	// Register us for action
+	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
+	ESP_LOGI(TAG, "NODD is registered");
 
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};
@@ -168,11 +198,7 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
-	// Register us for action
-	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
-	ESP_LOGI(TAG, "NODD is registered");
-	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
-	ESP_LOGI(TAG, "ROTATE is registered");
+	me->doOneStep();   // First time thru - start the clock.
 
 	//clockCallback(param);   // Force first time thru the clock callback.
 	// esp_timer_start_once(me->myTimer, nextTime-now);

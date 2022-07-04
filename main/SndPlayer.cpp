@@ -301,7 +301,7 @@ void SndPlayer::playMusic (void *output_ptr)
 						eye_avg /= EYE_AVG_SIZE;
 #ifdef ENABLE_EYES
 						eye_avg = map(eye_avg, 0, 3200, 0, 1000);
-						msg = Message::future_Message (TASK_NAME::EYES,
+						msg = Message::create_message (TASK_NAME::EYES,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									eye_avg * 10, eye_avg * 10, nullptr );
 							SwitchBoard::send (msg );
@@ -320,7 +320,7 @@ void SndPlayer::playMusic (void *output_ptr)
 						jaw_avg /= jaw_avg_cnt;
 #ifdef ENABLE_JAW
 						jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
-						msg = Message::future_Message (TASK_NAME::JAW,
+						msg = Message::create_message (TASK_NAME::JAW,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									jaw_avg, 0, nullptr );
 						SwitchBoard::send (msg );
@@ -342,11 +342,11 @@ void SndPlayer::playMusic (void *output_ptr)
 
 		} // END of while PLAY THIS FILE
 
-		msg = Message::future_Message (TASK_NAME::EYES,
+		msg = Message::create_message (TASK_NAME::EYES,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 											0, 0, nullptr );
 		SwitchBoard::send (msg );
-		msg = Message::future_Message (TASK_NAME::JAW,
+		msg = Message::create_message (TASK_NAME::JAW,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 											0, 0, nullptr );
 		SwitchBoard::send(msg);
@@ -367,27 +367,27 @@ void SndPlayer::testEyesAndJaws ()
 {
 	Message *msg;
 
-	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 255 , nullptr);
 	SwitchBoard::send (msg ); // Left Eye
-	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr);
 	SwitchBoard::send (msg ); // Open JAW
 
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
-	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 255, 0, nullptr );
 	SwitchBoard::send (msg );  // Right EYE
-	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 1000, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
 	ESP_LOGD(TAG, "NOW TO BEGIN..." );
-	msg = Message::future_Message (TASK_NAME::EYES, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );
-	msg = Message::future_Message (TASK_NAME::JAW, TASK_NAME::IDLER,
+	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 

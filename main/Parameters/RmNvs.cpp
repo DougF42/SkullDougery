@@ -31,9 +31,6 @@
 
 #define NVS_VERSION "1.0"
 
-
-
-
 static bool have_init_ok = false;
 static nvs_handle_t handle;
 #define MAX_VALUES 15

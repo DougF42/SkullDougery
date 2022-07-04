@@ -18,7 +18,9 @@
 
 #define ENABLE_PWM_DRIVER
 #define ENABLE_WIFI
-#define RUNSTEPPER
+#define ENABLE_SOUND
+#define ENABLE_STEPPER
+
 
 #include "audio/minimp3.h"
 
@@ -42,6 +44,15 @@ void app_main ()
 	io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
 
 	gpio_config (&io_conf );
+
+	TaskHandle_t switchboardHandle;
+
+// Start Switchboard first
+	ESP_LOGD(TAG, "About to start Switchboard!" );
+	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
+			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
+	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
+
 
 	// Initialize NVS, and load parameters.
 	esp_err_t ret = nvs_flash_init ();
@@ -89,16 +100,23 @@ void app_main ()
 		wifi.WiFi_HUB_init ();
 	}
 #endif
-//while(1) {
-//	ESP_LOGD(TAG, "....SLEEP....");
-//	vTaskDelay(10000); // Sleep forever
-//}
 
+#ifdef ENABLE_PWM_DRIVER
+	// JAW and EYES are on the PWM driver
+	// Hardware does all the work, so this does not have any background task...
+	PwmDriver pwmdriver("PWM");
+#endif
+
+#ifdef ENABLE_SOUND
 	SndPlayer player ("Player" );
 
 	xTaskCreatePinnedToCore (player.startPlayerTask, "Player", 32768, &player,
 			2, &(player.myTask), ASSIGN_SWITCHBOARD_CORE );
-#ifdef RUNSTEPPER
+
+#endif
+
+#ifdef ENABLE_STEPPER
+	// Rot and Nod are on the stepper driver
 	StepperDriver stepper("Stepper");
 	xTaskCreatePinnedToCore( StepperDriver::runTask, "Stepper Task", 8192,
 			&stepper, 1, nullptr, ASSIGN_STEPPER_CORE);
@@ -107,4 +125,5 @@ void app_main ()
 	{
 		vTaskDelay (5000 / portTICK_PERIOD_MS ); // Keep me alive
 	}
+
 }
