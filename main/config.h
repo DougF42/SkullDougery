@@ -11,9 +11,6 @@
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
 
-
-
-
 // comment this out if you want to use the internal DAC
 //#define USE_I2S
 

@@ -17,7 +17,7 @@
 #include "Stepper/StepperDriver.h"
 #define ENABLE_PWM_DRIVER
 #define ENABLE_WIFI
-// #define ENABLE_SOUND
+#define ENABLE_SOUND
 #define ENABLE_STEPPER
 
 #include "audio/minimp3.h"
