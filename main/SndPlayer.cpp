@@ -25,6 +25,8 @@
 #include "SndPlayer.h"
 #include "PwmDriver.h"
 
+// 8000 samples is aprox 1 second.
+#define NOTIFYINTERVAL 8000
 #define ENABLE_JAW
 #define ENABLE_EYES
 #define ENABLE_PWM (defined(ENABLE_JAW) || defined (ENABLE_EYES))
@@ -165,7 +167,7 @@ void SndPlayer::playMusic (void *output_ptr)
 	int jaw_avg = 0;
 	int jaw_avg_cnt = 0;
 	bool is_output_started = false;
-
+	long int totalSamples=0;
 
 #if defined(ENABLE_JAW) || defined (ENABLE_EYES)
 	Message *msg;
@@ -219,6 +221,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			runState = PLAYER_IDLE;
 			continue;
 		}
+		totalSamples=0;
 
 		while (1) // PLAY THIS FILE
 		{
@@ -260,7 +263,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm,
 					&info );
 
-			// we've processed this may bytes from teh buffered data
+			// we've processed this may bytes from the buffered data
 			buffered -= info.frame_bytes;
 
 			// shift the remaining data to the front of the buffer
@@ -289,6 +292,12 @@ void SndPlayer::playMusic (void *output_ptr)
 					}
 				}
 
+				// TODO: EVERY n SAMPLES, notify the action_sequencer to check for nod or rot
+				//     actions.
+				if (0==(totalSamples % NOTIFYINTERVAL))
+				{
+					// TODO: SEND NOTIFY MESSAGES TO MOTIONSEQUENCER
+				}
 				// This is where we do the averaging
 				for (int i = 0; i < (samples * 2); i += 2 )
 				{
