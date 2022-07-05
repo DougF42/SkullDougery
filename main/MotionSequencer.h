@@ -12,7 +12,7 @@
 #ifndef MAIN_SEQUENCER_MOTIONSEQUENCER_H_
 #define MAIN_SEQUENCER_MOTIONSEQUENCER_H_
 
-#include "Configuration.h"
+#include "config.h"
 #include "Sequencer/DeviceDef.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
@@ -36,7 +36,7 @@ private:
 		unsigned char value;  // Value to set the device to.
 		Sequence *next;  // Pointer to next
 		Sequence *prev;  // Pointer to previous
-		Sequence(unsigned long _time, unsigned char _event, unsigned char *_value)
+		Sequence(unsigned long _time, unsigned char _event, unsigned char _value)
 		{
 			tstamp = _time;
 			event  = _event;
@@ -51,11 +51,11 @@ private:
 	Sequence *nextSeqToPerform; // If done in sequence, this should be next
 	int seqListSize;
 
-	void MotionSequencer::findNextAction(unsigned int targetTime, Sequence *ptr);
+	void findNextAction(unsigned int targetTime, Sequence *ptr);
 
 public:
-	MotionSequencer();
-	virtual ~MotionSequencer(const char *name);
+	MotionSequencer(const char *name);
+	virtual ~MotionSequencer();
 	bool loadFile(const char *fname);
 	void callBack(const Message *msg); // Message delivery
 };

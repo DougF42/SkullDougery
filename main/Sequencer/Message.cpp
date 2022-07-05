@@ -69,7 +69,6 @@ Message *Message::create_message(
 	{
 		ESP_LOGD(TAG,"message text length is %u. Message is:%s", strlen(txt), txt);
 		strncpy(m->text, txt, sizeof(m->text)-1);
->>>>>>> addStepper
 	}
 	return(m);
 }

@@ -448,7 +448,7 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 
 	if (! requireArgs( tokCount, tokens, 3, NULL, NULL ))
 	{
-		postResponse ("Missing paramter name or value in SET commnad",
+		postResponse ("Missing parameter name or value in SET command",
 				RESPONSE_UNKNOWN );
 		return;
 	}
@@ -459,12 +459,12 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		}
 		else
 		{
-			msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, false, 0, NULL);
+			msg= Message::create_message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, false, 0, NULL);
 			SwitchBoard::send(msg);
 			vTaskDelay(2L);     // Give Switchboard a chance to deliver
 			RmNvs::clear_nvs();    // DOES NOT RETURN. DOES automatic RESTART
 			postResponse("OK", RESPONSE_OK);
-			msg= Message::future_Message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, true, 0, NULL);
+			msg= Message::create_message(TASK_NAME::NODD, TASK_NAME::IDLER, EVENT_STEPPER_CONTROL_TIMER, true, 0, NULL);
 						SwitchBoard::send(msg);
 		}
 	}
@@ -729,8 +729,8 @@ void CmdDecoder::callBack (const Message *msg)
 
 			default:
 				snprintf (respBuf, sizeof(respBuf),
-						"Unknown response to command. Source:%d  Event:%d, value:%ld text:%s.",
-						TASK_IDX(msg->response), msg->event, msg->value, msg->text );
+						"Unknown response to command. Source:%d  Event:%d, value:%ld",
+						TASK_IDX(msg->response), msg->event, msg->value);
 				postResponse (respBuf, RESPONSE_OK );
 				break;
 		}

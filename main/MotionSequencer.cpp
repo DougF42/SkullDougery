@@ -9,11 +9,12 @@
  *  Created on: Jul 3, 2022
  *      Author: doug
  */
-#include "Configuration.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 #include "esp_log.h"
 #include "SPIFFS.h"
 #include "Sequencer/DeviceDef.h"
@@ -21,7 +22,9 @@
 #include "Sequencer/SwitchBoard.h"
 #include "MotionSequencer.h"
 
-MotionSequencer::MotionSequencer(const char *name) : Device(name) {
+static const char *TAG = "MotionSequencer";
+
+MotionSequencer::MotionSequencer(const char *name) : DeviceDef(name) {
 	// TODO Auto-generated constructor stub
 
 	ESP_LOGD(TAG, "Register Motion Sequencer");
@@ -53,18 +56,18 @@ bool MotionSequencer::loadFile(const char *fname)
 	}
 
 
-	FILE *file = fopen(fname);
+	FILE *file = fopen(fname, "r");
 	if ( !file )
 	{
 		ESP_LOGE("MotionSequencer", "Failed to open Sequence control file. Error %d (%s)", errno,
 				strerror(errno) );
-		runState = PLAYER_IDLE;
-		continue;
+		return (false);
 	}
+
 	// Load the file.
 	char *linptr=NULL;
-	int   *linptrLen=0;
-	int actLen;
+	size_t linptrLen=0;
+	ssize_t actlen;
 	long int lineno=0;
 
 	unsigned long timeStamp;
@@ -80,13 +83,13 @@ bool MotionSequencer::loadFile(const char *fname)
 		int noOfArgs = sscanf(linptr, "%lu %c %c", &timeStamp, &action, &value );
 		if (noOfArgs != 3)
 		{
-			ESP_LOGE("MotionSequencer", "Format Error detected while reading sequence control file at line %d ", lineno);
+			ESP_LOGE(TAG, "Format Error detected while reading sequence control file at line %ld ", lineno);
 			continue;
 		}
 
 		if (timeStamp < curSeq->tstamp)
 		{
-			ESP_LOGE("MotionSequencer", "Sequence error: Time of line %d is less than previous!", lineno);
+			ESP_LOGE(TAG, "Sequence error: Time of line %ld is less than previous!", lineno);
 			continue;
 		}
 
@@ -109,8 +112,12 @@ bool MotionSequencer::loadFile(const char *fname)
 	{
 		// AN ERROR OCCURED - report it!
 	}
+
+	fclose(file);
 	// All set....
 	nextSeqToPerform = firstSeq;
+
+	return(true);
 }
 
 /**
@@ -128,7 +135,7 @@ bool MotionSequencer::loadFile(const char *fname)
 	 // move backwards until prev
 	 while (seq != nullptr)
 	 {
-		 if (seq < targetTime) break;
+		 if ( seq->tstamp < targetTime) break;
 		 seq=seq->prev;
 	 } // Try next one
 	 ptr=seq;

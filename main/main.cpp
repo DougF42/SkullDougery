@@ -77,8 +77,6 @@ void app_main ()
 
 	RmNvs::dumpTable ();
 
-	TaskHandle_t switchboardHandle;
-
 // Start Switchboard first
 	ESP_LOGD(TAG, "About to start Switchboard!" );
 	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,

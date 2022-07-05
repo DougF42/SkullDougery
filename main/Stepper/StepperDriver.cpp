@@ -45,43 +45,49 @@ StepperDriver::~StepperDriver ()
  * If the message contains a command to a StepperMotorController,
  * we stop the timer, execute the command, then call the timer interrupt
  * ( which will re-start the timer).
+ *
+ * We accept the following message types:
+ *     EVENT_STEPPER_EXECUTE_CMD   101
  */
 void StepperDriver::callBack (const Message *msg)
 {
-	esp_timer_stop (myTimer );
-
-	StepperMotorController *target=nullptr;
-
-	switch (msg->destination)
-	{
-		ESP_LOGD(TAG, "STEPPER TIME INTERVAL %ld", maxInterval );
-		maxInterval = 0L;
-	}
-
-	else if (msg->event == EVENT_STEPPER_CONTROL_TIMER) {
-		controlTimer(msg->value!=0);
-	}
-
-	const char *res=target->ExecuteCommand(msg->text);
 	Message *resp;
-	ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
-
-	if ((res==nullptr) || (res[0] == '\0'))
-	{   // no resp text means "OK"
-		resp=Message::create_message(
-			msg->response,
-			msg->destination,
-			msg->event, 0, 0, "OK");
-	} else { // Something to report to caller...
-		resp=Message::create_message(
-			msg->response,
-			msg->destination,
-			msg->event, 0, 0, res);
-	}
-
-	SwitchBoard::send(resp);
 	esp_timer_stop(myTimer);
-	doOneStep();
+
+	StepperMotorController *target = nullptr;
+
+	if (msg->event == EVENT_STEPPER_EXECUTE_CMD) {
+		// pic target - NOD or ROT ???
+		switch (msg->destination) {
+		case (TASK_NAME::NODD):
+			target = nodControl;
+			break;
+
+		case (TASK_NAME::ROTATE):
+			target = rotControl;
+			break;
+
+		default: // Should not happen!
+			resp = Message::create_message(msg->response, msg->destination,
+					msg->event, 0, 0, "Bad format, or unknown device !");
+			break;
+		}
+		// RUN the command, return a appropriate response
+		const char *res = target->ExecuteCommand(msg->text);
+		ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
+
+		if ((res == nullptr) || (res[0] == '\0')) {   // no resp text means "OK"
+			resp = Message::create_message(msg->response, msg->destination,
+					msg->event, 0, 0, "OK");
+		} else { // Something to report to caller...
+			resp = Message::create_message(msg->response, msg->destination,
+					msg->event, 0, 0, res);
+		}
+
+		SwitchBoard::send(resp);
+		esp_timer_stop(myTimer);
+		doOneStep();
+	}
 }
 
 
