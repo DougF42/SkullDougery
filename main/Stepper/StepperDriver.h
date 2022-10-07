@@ -33,6 +33,7 @@ private:
 	StepperMotorController *nodControl;
 	StepperMotorController *rotControl;
 	static esp_timer_handle_t myTimer;
+	bool timerState;
 
 	static void clockCallback(void *_me);
 	void doOneStep();

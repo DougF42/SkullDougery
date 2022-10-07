@@ -27,9 +27,6 @@
 static const char *TAG = "MAIN::";
 
 extern "C"
-{
-void app_main ();
-}
 
 void app_main ()
 {

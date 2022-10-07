@@ -27,10 +27,12 @@ static const char *TAG="STEPPER DRIVER::";
 
 esp_timer_handle_t  StepperDriver::myTimer=nullptr;
 
+
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
 	nodControl=nullptr;
 	rotControl=nullptr;
+	timerState = false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -52,7 +54,8 @@ StepperDriver::~StepperDriver ()
 void StepperDriver::callBack (const Message *msg)
 {
 	Message *resp;
-	esp_timer_stop(myTimer);
+
+	controlTimer( false);  // stop timer
 
 	StepperMotorController *target = nullptr;
 
@@ -72,7 +75,8 @@ void StepperDriver::callBack (const Message *msg)
 					msg->event, 0, 0, "Bad format, or unknown device !");
 			break;
 		}
-		// RUN the command, return a appropriate response
+
+		// RUN the command on the target, return a appropriate response
 		const char *res = target->ExecuteCommand(msg->text);
 		ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
 
@@ -85,8 +89,8 @@ void StepperDriver::callBack (const Message *msg)
 		}
 
 		SwitchBoard::send(resp);
-		esp_timer_stop(myTimer);
 		doOneStep();
+		controlTimer(true);
 	}
 }
 
@@ -95,8 +99,6 @@ void StepperDriver::callBack (const Message *msg)
  * This is the timer callback - each time thru
  * we call the 'run' function of each StepperMotorController.
  *
- * We *could* define two separate callbacks (with different timers),
- * but being lazy one timer handles both.
  *
  * In all cases, we expect the timer to be stopped upon entry.
  * We will start it
@@ -113,24 +115,24 @@ void StepperDriver::clockCallback(void *arg) {
  *
  */
 void StepperDriver::controlTimer(bool flag) {
-	if (flag == timer_state) return;
+	if (flag == timerState) return;
 	if (flag)
 	{
 		esp_timer_start_periodic(myTimer, CLOCK_RATE); // Interval in uSeconds.
-		timer_state=true;
+		timerState=true;
 	}
 	else
 	{
 		esp_timer_stop(myTimer);
-		timer_state=false;
+		timerState=false;
 	}
-
 }
+
 
 /**
  *
  * Do next time step.
- *  This just calls 'run' for eacho of the running tasks, then
+ *  This just calls 'run' for each of the running tasks, then
  *  looks at each one's 'next step' time and starts a one-shot
  *  timer for the shortest period.
  *
@@ -140,7 +142,6 @@ void StepperDriver::controlTimer(bool flag) {
  *     IF calling from the anywhere else, THAT function
  *        must ensure that the clock is stopped BEFORE calling doOneStep.
  *
- *     The clock is automatically started by this routine.
  *
  */
 void StepperDriver::doOneStep()
@@ -165,9 +166,8 @@ void StepperDriver::doOneStep()
 
 	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
 	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
-
-	esp_timer_start_once(myTimer, delayForUsec);
 }
+
 
 /**
  * This is the 'StepperDriver' task.
@@ -204,11 +204,7 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
-	me->doOneStep();   // First time thru - start the clock.
-
-	//clockCallback(param);   // Force first time thru the clock callback.
-	// esp_timer_start_once(me->myTimer, nextTime-now);
-	//esp_timer_start_periodic(me->myTimer, 1000); // Interval in uSeconds.
+	me->doOneStep();   // First time thru...
 	me->controlTimer(true);
 
 	// Sit and twiddle our thumbs while the timer does all the work

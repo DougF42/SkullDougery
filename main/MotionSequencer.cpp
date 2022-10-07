@@ -37,6 +37,47 @@ MotionSequencer::~MotionSequencer() {
 	// TODO Auto-generated destructor stub
 }
 
+
+/**
+ * Reads a full line from a stream, storing it into the buffer 'lineptr'
+ * or bufLen-1 chars.
+ *
+ * A terminating nullis always present.
+ *
+ * The read teminates either when the end-of-line character ('\n') or an error,
+ * or EndOfFile is seen, or the buffer is full.
+ *
+ * The End-Of-Line character ('\n') is included  if present in the stream. The string
+ * will always be null-terminated (even if length is 0).
+ *
+ * Caller should check ferror(fptr) and feof(fptr) as appropriate.
+ *
+ * @param lineptr - pointer to char buffer to be filled. Must be allocated by caller.
+ * @param bufLen  - the size of the buffer. We can read a line up to bufLen-1 chars (the last
+ *                  will be the inserted null terminating the string.)
+ * @param fptr      File pointer to stream device.
+ *
+ * @return length of line read - 0 if empty line (or at EOF). Does not include the terminating null.
+ *
+ *
+ */
+int MotionSequencer::defGetline(char *lineptr, size_t bufLen,  FILE *fptr)
+{
+	int len=0;
+	char ch;
+	while ( !feof(fptr) && !ferror(fptr) )
+	{
+		if (len >= (bufLen-1)) break;
+		ch= getc(fptr);
+		if (ferror(fptr) | feof(fptr)) break;
+		lineptr[len++]=ch;
+		if (ch=='\n') break;
+	}
+	lineptr[len]='\0';
+	return(len);
+}
+
+
 /**
  * Load the indicated motion file from flash
  * '# at head of line is comment.
@@ -65,7 +106,7 @@ bool MotionSequencer::loadFile(const char *fname)
 	}
 
 	// Load the file.
-	char *linptr=NULL;
+	char linptr[128];
 	size_t linptrLen=0;
 	ssize_t actlen;
 	long int lineno=0;
@@ -75,7 +116,7 @@ bool MotionSequencer::loadFile(const char *fname)
 	unsigned char value;
 	curSeq=nullptr;
 
-	while ( 0 < (actlen=getline( &linptr, &linptrLen, file)))
+	while ( 0 < (actlen=defGetline( linptr, linptrLen, file)))
 	{
 		// process the line:
 		lineno++;
@@ -83,7 +124,8 @@ bool MotionSequencer::loadFile(const char *fname)
 		int noOfArgs = sscanf(linptr, "%lu %c %c", &timeStamp, &action, &value );
 		if (noOfArgs != 3)
 		{
-			ESP_LOGE(TAG, "Format Error detected while reading sequence control file at line %ld ", lineno);
+			ESP_LOGE(TAG, "Format Error detected while reading sequence control file at line %ld ",
+					lineno);
 			continue;
 		}
 
@@ -106,7 +148,6 @@ bool MotionSequencer::loadFile(const char *fname)
 		}
 
 	}  // End of while
-	free(linptr);
 
 	if (! feof(file))
 	{
