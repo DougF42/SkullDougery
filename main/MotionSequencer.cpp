@@ -29,12 +29,19 @@ MotionSequencer::MotionSequencer(const char *name) : DeviceDef(name) {
 
 	ESP_LOGD(TAG, "Register Motion Sequencer");
 	SwitchBoard::registerDriver (TASK_NAME::MOTIONSEQ, this );
-
-
+	firstSeq=nullptr;
+	nextSeqToPerform=nullptr;
+	seqListSize=0;
 }
 
 MotionSequencer::~MotionSequencer() {
 	// TODO Auto-generated destructor stub
+}
+
+
+int MotionSequencer::defGetline(char * linptr, size_t linptrLen, FILE *file)
+{
+	return(0);
 }
 
 /**
@@ -65,7 +72,7 @@ bool MotionSequencer::loadFile(const char *fname)
 	}
 
 	// Load the file.
-	char *linptr=NULL;
+	char linptr[128];
 	size_t linptrLen=0;
 	ssize_t actlen;
 	long int lineno=0;
@@ -75,7 +82,7 @@ bool MotionSequencer::loadFile(const char *fname)
 	unsigned char value;
 	curSeq=nullptr;
 
-	while ( 0 < (actlen=getline( &linptr, &linptrLen, file)))
+	while ( 0 < (actlen=defGetline( linptr, linptrLen, file)))
 	{
 		// process the line:
 		lineno++;
@@ -106,7 +113,6 @@ bool MotionSequencer::loadFile(const char *fname)
 		}
 
 	}  // End of while
-	free(linptr);
 
 	if (! feof(file))
 	{

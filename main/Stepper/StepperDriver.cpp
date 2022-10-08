@@ -31,6 +31,7 @@ StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
 	nodControl=nullptr;
 	rotControl=nullptr;
+	timer_state=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -52,7 +53,7 @@ StepperDriver::~StepperDriver ()
 void StepperDriver::callBack (const Message *msg)
 {
 	Message *resp;
-	esp_timer_stop(myTimer);
+	controlTimer(false);
 
 	StepperMotorController *target = nullptr;
 
@@ -87,6 +88,7 @@ void StepperDriver::callBack (const Message *msg)
 		SwitchBoard::send(resp);
 		esp_timer_stop(myTimer);
 		doOneStep();
+		controlTimer(true);
 	}
 }
 
@@ -165,8 +167,6 @@ void StepperDriver::doOneStep()
 
 	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
 	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
-
-	esp_timer_start_once(myTimer, delayForUsec);
 }
 
 /**
@@ -206,9 +206,6 @@ void StepperDriver::runTask(void *param) {
 
 	me->doOneStep();   // First time thru - start the clock.
 
-	//clockCallback(param);   // Force first time thru the clock callback.
-	// esp_timer_start_once(me->myTimer, nextTime-now);
-	//esp_timer_start_periodic(me->myTimer, 1000); // Interval in uSeconds.
 	me->controlTimer(true);
 
 	// Sit and twiddle our thumbs while the timer does all the work

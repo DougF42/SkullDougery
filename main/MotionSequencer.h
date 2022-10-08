@@ -52,6 +52,7 @@ private:
 	int seqListSize;
 
 	void findNextAction(unsigned int targetTime, Sequence *ptr);
+	int defGetline(char * linptr, size_t linptrLen, FILE *file);
 
 public:
 	MotionSequencer(const char *name);
