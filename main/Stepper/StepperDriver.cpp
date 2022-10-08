@@ -20,19 +20,25 @@
 #include "../Sequencer/DeviceDef.h"
 #include "../Sequencer/Message.h"
 
-// The rate (in uSeconds) that 'run' will be called.
-#define CLOCK_RATE 500
+// If defined, then the  'doOneStep' method is always called
+// at the MIN_CLOCK_RATE value.
+// Otherwise, each time thru 'doOneStep' we calculate the
+// set the timer to that interval (never less
+// than STEPPER_FIXED_CYCLE_TIME) before calling 'doOneStep' again
+#define STEPPER_FIXED_CYCLE_TIME 1
+
+// The minimum rate (in uSeconds) that 'run' will be called, or
+// the actual rate that 'run' is called (in microseconds)
+#define MIN_CLOCK_RATE 500
 
 static const char *TAG="STEPPER DRIVER::";
 
-esp_timer_handle_t  StepperDriver::myTimer=nullptr;
-
-
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
-	nodControl=nullptr;
-	rotControl=nullptr;
-	timer_state=false;
+  myTimer=nullptr;
+  nodControl=nullptr;
+  rotControl=nullptr;
+  timer_state=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -54,7 +60,7 @@ StepperDriver::~StepperDriver ()
 void StepperDriver::callBack (const Message *msg)
 {
 	Message *resp;
-	controlTimer(false);
+	controlTimer(-1);
 
 	StepperMotorController *target = nullptr;
 
@@ -89,7 +95,7 @@ void StepperDriver::callBack (const Message *msg)
 
 		SwitchBoard::send(resp);
 		doOneStep();
-		controlTimer(true);
+	
 	}
 }
 
@@ -100,31 +106,40 @@ void StepperDriver::callBack (const Message *msg)
  *
  *
  * In all cases, we expect the timer to be stopped upon entry.
- * We will start it
+ *
  */
 void StepperDriver::clockCallback(void *arg) {
 	StepperDriver *me= (StepperDriver *)arg;
 	me->doOneStep();
 }
 
+
 /**
- * Stop or start the timer, based on the 'flag'.
+ * Stop or start the one-shot timer, based on the argument
+ * -1 stops the counter. 0 sets a default value of MIN_CLOCK_RATE.
  * If the timer is already in that mode, do nothing.
  * @param flag - boolean. true to start, false to stop timer.
  *
  */
-void StepperDriver::controlTimer(bool flag) {
-	if (flag == timerState) return;
-	if (flag)
-	{
-		esp_timer_start_periodic(myTimer, CLOCK_RATE); // Interval in uSeconds.
-		timerState=true;
-	}
-	else
-	{
-		esp_timer_stop(myTimer);
-		timerState=false;
-	}
+void StepperDriver::controlTimer(uint64_t value) {
+  if (value == timerState) return;
+   if (value<0)
+    {
+      if (esp_timer_is_active)  esp_timer_stop(myTimer);
+		
+    } else  if (value<0)
+    {
+      esp_timer_start_once(myTimer, MIN_CLOCK_RATE); // Interval in uSeconds.
+		
+    }else if (value>0)
+    {
+#define STEPPER_FIXED_CYCLE_TIME
+           esp_timer_start_once(myTimer,MIN_CLOCK_RATE ); // Interval in uSeconds.
+#else
+	   esp_timer_start_once(myTimer,value ); // Interval in uSeconds.
+#endif
+
+    }
 }
 
 
@@ -165,6 +180,7 @@ void StepperDriver::doOneStep()
 
 	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
 	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
+	controlTimer(delayForUsec);
 }
 
 
@@ -203,8 +219,7 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
-	me->doOneStep();   // First time thru - start the clock.
-	me->controlTimer(true);
+	me->controlTimer(MIN_CLOCK_RATE); // start the clock
 
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)

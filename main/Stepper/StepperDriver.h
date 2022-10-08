@@ -16,6 +16,7 @@
 #include "esp_log.h"
 
 
+
 #define EVENT_STEPPER_EXECUTE_CMD 101
 #define EVENT_GET_TIME            102
 #define EVENT_STEPPER_CONTROL_TIMER 103
@@ -27,13 +28,13 @@ public:
 	StepperDriver (const char *name);
 	virtual ~StepperDriver ();
 	void callBack(const Message *msg);
-	static void runTask(void *param);
-	void controlTimer(bool flag);
+	void controlTimer(int64_t flag);
+  	static void runTask(void *param);
 
 private:
 	StepperMotorController *nodControl;
 	StepperMotorController *rotControl;
-	static esp_timer_handle_t myTimer;
+	esp_timer_handle_t myTimer;
 	bool timerState;
 
 	static void clockCallback(void *_me);
