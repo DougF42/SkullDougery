@@ -32,7 +32,7 @@ StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
 	nodControl=nullptr;
 	rotControl=nullptr;
-	timerState = false;
+	timer_state=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -54,8 +54,7 @@ StepperDriver::~StepperDriver ()
 void StepperDriver::callBack (const Message *msg)
 {
 	Message *resp;
-
-	controlTimer( false);  // stop timer
+	controlTimer(false);
 
 	StepperMotorController *target = nullptr;
 
@@ -204,7 +203,7 @@ void StepperDriver::runTask(void *param) {
 	timer_cfg.dispatch_method=ESP_TIMER_TASK;
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
-	me->doOneStep();   // First time thru...
+	me->doOneStep();   // First time thru - start the clock.
 	me->controlTimer(true);
 
 	// Sit and twiddle our thumbs while the timer does all the work

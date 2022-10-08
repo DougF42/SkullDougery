@@ -29,8 +29,9 @@ MotionSequencer::MotionSequencer(const char *name) : DeviceDef(name) {
 
 	ESP_LOGD(TAG, "Register Motion Sequencer");
 	SwitchBoard::registerDriver (TASK_NAME::MOTIONSEQ, this );
-
-
+	firstSeq=nullptr;
+	nextSeqToPerform=nullptr;
+	seqListSize=0;
 }
 
 MotionSequencer::~MotionSequencer() {
