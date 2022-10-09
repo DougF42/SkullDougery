@@ -121,11 +121,11 @@ void StepperDriver::clockCallback(void *arg) {
  * @param flag - boolean. true to start, false to stop timer.
  *
  */
-void StepperDriver::controlTimer(uint64_t value) {
+void StepperDriver::controlTimer(int64_t value) {
   if (value == timerState) return;
    if (value<0)
     {
-      if (esp_timer_is_active)  esp_timer_stop(myTimer);
+      if (esp_timer_is_active(myTimer))  esp_timer_stop(myTimer);
 		
     } else  if (value<0)
     {
@@ -133,7 +133,7 @@ void StepperDriver::controlTimer(uint64_t value) {
 		
     }else if (value>0)
     {
-#define STEPPER_FIXED_CYCLE_TIME
+#ifdef STEPPER_FIXED_CYCLE_TIME
            esp_timer_start_once(myTimer,MIN_CLOCK_RATE ); // Interval in uSeconds.
 #else
 	   esp_timer_start_once(myTimer,value ); // Interval in uSeconds.

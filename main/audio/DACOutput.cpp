@@ -11,7 +11,7 @@ void DACOutput::start(int sample_rate)
     // i2s config for writing both channels of I2S
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN),
-        .sample_rate = sample_rate,
+        .sample_rate = (uint32_t)sample_rate,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
@@ -21,8 +21,8 @@ void DACOutput::start(int sample_rate)
         .use_apll = false,
         .tx_desc_auto_clear = true,
         .fixed_mclk = 0,
-	//	.mclk_multiple = I2S_MCLK_MULTIPLE_DEFAULT,
-    //	.bits_per_chan = I2S_BITS_PER_CHAN_DEFAULT
+		.mclk_multiple = I2S_MCLK_MULTIPLE_DEFAULT,
+    	.bits_per_chan = I2S_BITS_PER_CHAN_DEFAULT
 		};
 
     //install and start i2s driver
