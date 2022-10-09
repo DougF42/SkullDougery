@@ -45,10 +45,10 @@ void app_main ()
 	TaskHandle_t switchboardHandle;
 
 // Start Switchboard first
-	ESP_LOGD(TAG, "About to start Switchboard!" );
-	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
-			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
-	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
+//	ESP_LOGD(TAG, "About to start Switchboard!" );
+//	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
+//			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
+//	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
 
 
 	// Initialize NVS, and load parameters.

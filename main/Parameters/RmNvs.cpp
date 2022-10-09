@@ -170,7 +170,7 @@ void RmNvs::initSingleAddr( int idx, const char *key, const char *addrStr) {
 void RmNvs::init_values() {
 
 	int idx=0;
-
+#define NET_MAKERSLAIR
 #if defined NET_DOUGSHOME
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "Daisy-5_2GEXT");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "iknowits42");
@@ -180,12 +180,14 @@ void RmNvs::init_values() {
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "Makers'Lair-2.4");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "sparksAreHere");
 	initSingleBool  (idx++, RMNVS_FORCE_STA_MODE, true);
-	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
+	initSingleAddr  (idx++, RMNVS_IP,             "192.168.10.197");  // This is my address
 #elif defined NET_NYOWNHUB
 	initSingleString(idx++, RMNVS_KEY_WIFI_SSID,  "skulldougery");
 	initSingleString(idx++, RMNVS_KEY_WIFI_PASS,  "password");
 	initSingleBool  (idx++,   RMNVS_FORCE_STA_MODE, false);
 	initSingleAddr  (idx++, RMNVS_IP,             "192.168.4.1");  // This is my address
+#else
+	ESP_LOGD(TAG, "ERROR: NO NETWORK CONFIGURED in RmNvs.cpp!");
 #endif
 
 	initSingleInt   (idx++, RMNVS_CMD_PORT,       100);

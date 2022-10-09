@@ -1509,6 +1509,11 @@
 			<location>/home/doug/esp/esp_4.4.2/components/esp_system/xt_wdt.c</location>
 		</link>
 		<link>
+			<name>esp_idf_components/.2/esp_websocket_client/esp_websocket_client.c</name>
+			<type>1</type>
+			<location>/home/doug/esp/esp_4.4.2/components/esp_websocket_client/esp_websocket_client.c</location>
+		</link>
+		<link>
 			<name>esp_idf_components/.2/freertos/FreeRTOS-openocd.c</name>
 			<type>1</type>
 			<location>/home/doug/esp/esp_4.4.2/components/freertos/FreeRTOS-openocd.c</location>
@@ -2042,6 +2047,11 @@
 			<name>esp_idf_components/.2/tcp_transport/transport_utils.c</name>
 			<type>1</type>
 			<location>/home/doug/esp/esp_4.4.2/components/tcp_transport/transport_utils.c</location>
+		</link>
+		<link>
+			<name>esp_idf_components/.2/tcp_transport/transport_ws.c</name>
+			<type>1</type>
+			<location>/home/doug/esp/esp_4.4.2/components/tcp_transport/transport_ws.c</location>
 		</link>
 		<link>
 			<name>esp_idf_components/.2/tcpip_adapter/tcpip_adapter_compat.c</name>
