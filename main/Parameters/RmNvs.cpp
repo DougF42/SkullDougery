@@ -33,7 +33,7 @@
 
 static bool have_init_ok = false;
 static nvs_handle_t handle;
-#define MAX_VALUES 15
+#define MAXVALUES 20
 static const char * NVS_PREFIX = "REMOTE_MOD";
 static const char *TAG         = "----NVS_ACCESS:";
 
@@ -55,7 +55,7 @@ struct curValues_t {
 	};
 } ;
 
-static struct curValues_t curValues[15];
+static struct curValues_t curValues[MAXVALUES];
 static int NOOFCURVALUES;    // Filled in by init
 
 
@@ -200,8 +200,15 @@ void RmNvs::init_values() {
 	initSingleInt   (idx++, RMNVS_SRV_PORT,       3001);
 	initSingleAddr  (idx++, RMNVS_DNS_ADDR,       "8.8.8.8");
 	initSingleInt   (idx++, RMNVS_WIFI_CHANNEL,      1);
+	initSingleInt   (idx++, RMNVS_ROT_MIN_POS,     0);
+	initSingleInt   (idx++, RMNVS_ROT_MAX_POS,     1000);
+	initSingleInt   (idx++, RMNVS_NOD_MIN_POS,     0);
+	initSingleInt   (idx++, RMNVS_NOD_MAX_POS,     1000);
+
+#define RMNVS_ROT_MAX_POS   "rotMaxPos"
+
 	initSingleString(idx++, RMVS_END,             "END");
-	curValues[idx].datatype=RMNVS_END;   // Force END flag.
+	curValues[idx].datatype=RMNVS_END;            // Force END flag.
 	NOOFCURVALUES=idx;
 };
 

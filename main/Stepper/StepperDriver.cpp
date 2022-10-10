@@ -19,6 +19,7 @@
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
 #include "../Sequencer/Message.h"
+#include "../Parameters/RmNvs.h"
 
 // If defined, then the  'doOneStep' method is always called
 // at the MIN_CLOCK_RATE value.
@@ -200,16 +201,38 @@ void StepperDriver::doOneStep()
  */
 void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
-
+	char cmd[64];
+	const char *resp;
 	// initialize the controllers
 	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, STEPPER_NO_LED);
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
 	ESP_LOGI(TAG, "ROTATE is registered");
+	resp=me->rotControl->ExecuteCommand("EN");
+	ESP_LOGD(TAG,"Rotate EN command resp=%s",resp);
+
+	resp=me->rotControl->ExecuteCommand("SH");
+
+	sprintf(cmd, "SL%d",RmNvs::get_int(RMNVS_ROT_MIN_POS));
+	resp=me->rotControl->ExecuteCommand(cmd);
+	ESP_LOGD(TAG,"Roate %s command. Resp=%s",cmd, resp);
+
+	sprintf(cmd, "SU%d", RmNvs::get_int(RMNVS_ROT_MAX_POS));
+	resp=me->rotControl->ExecuteCommand(cmd);
+	ESP_LOGD(TAG, "Rotate: %s command. Resp=%s",cmd,resp);
 
 	me->nodControl = new StepperMotorController(UNIPOLAR, NOD_PINA,    NOD_PINB,    NOD_PINC,   NOD_PIND,  STEPPER_NO_LED);
 	// Register us for action
 	SwitchBoard::registerDriver(TASK_NAME::NODD, me);
 	ESP_LOGI(TAG, "NODD is registered");
+
+	me->nodControl->ExecuteCommand("EN");
+	me->nodControl->ExecuteCommand("SH");
+
+	sprintf(cmd, "SL%d", RmNvs::get_int(RMNVS_NOD_MIN_POS));
+	me->nodControl->ExecuteCommand(cmd);
+
+	sprintf(cmd, "SU%d", RmNvs::get_int(RMNVS_NOD_MAX_POS));
+	me->nodControl->ExecuteCommand(cmd);
 
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};

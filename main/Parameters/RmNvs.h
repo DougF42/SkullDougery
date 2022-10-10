@@ -38,6 +38,10 @@ enum RMNVS_DTA_t { RMNVS_STRING, RMNVS_INT, RMNVS_ADDR, RMNVS_BOOL,  RMNVS_END }
 #define RMNVS_SRV_ADDR      "srvaddr"
 #define RMNVS_SRV_PORT      "srvport"
 #define RMNVS_DNS_ADDR      "dns"
+#define RMNVS_NOD_MIN_POS   "nodMinPos"
+#define RMNVS_NOD_MAX_POS   "nodMaxPos"
+#define RMNVS_ROT_MIN_POS   "rotMinPos"
+#define RMNVS_ROT_MAX_POS   "rotMaxPos"
 
 class RmNvs
 {

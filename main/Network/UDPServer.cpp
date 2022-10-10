@@ -36,6 +36,7 @@ const static char *TAG="...UDPSERVER";
 
 UDPServer::UDPServer (TASK_NAME devId):CmdDecoder (devId)
 {
+	SwitchBoard::registerDriver(devId, this);
 	sock = -1;
 }
 
