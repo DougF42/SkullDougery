@@ -174,9 +174,9 @@ void PwmDriver::callBack (const Message *msg)
 			{  // Set both eyes to given value
 				duty=msg->value;
 				duty = interpEyes.interp(duty);
-	//			ESP_LOGD(TAG,
-	//					"PWMDRIVER Callback: Set EYES to %d. Actual value will be %d",
-	//					msg->value, duty );
+				ESP_LOGD(TAG,
+						"PWMDRIVER Callback: Set EYES to %ld. Actual value will be %d",
+						msg->value, duty );
 				// TODO: Factor in EYEDIR
 				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_right_eye, duty );
 				ledc_set_duty (LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
