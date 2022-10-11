@@ -2,7 +2,8 @@
 
 #include <freertos/FreeRTOS.h>
 #include <driver/i2s.h>
-
+#ifndef O_U_T_P_U_T__H
+#define O_U_T_P_U_T__H
 /**
  * Base Class for both the DAC and I2S output
  **/
@@ -31,3 +32,4 @@ public:
     this->volume = volume;
   }
 };
+#endif

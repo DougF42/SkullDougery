@@ -18,9 +18,8 @@
 #include "driver/ledc.h"
 #include "Sequencer/DeviceDef.h"
 #include "Interpolate.h"
-#define EVENT_ACTION_SETDIR   100
-#define EVENT_ACTION_SETLEFT  101
-#define EVENT_ACTION_SETRIGHT 102
+#define EVENT_ACTION_SETLEFT  100
+#define EVENT_ACTION_SETRIGHT 101
 class PwmDriver : DeviceDef{
 public:
 	PwmDriver(const char *name);
@@ -41,8 +40,8 @@ private:
 	int servo_max;
 	void timerSetup();
 	static bool alreadyInited;
-	Interpolate interpJaw;
-	Interpolate interpEyes;
+	Interpolate interpJaw;   // used to interpolate input value to actual setting for jaw
+	Interpolate interpEyes;  // used to interpolate input value to actual setting for eyes
 };
 
 #endif /* MAIN_PWMDRIVER_H_ */

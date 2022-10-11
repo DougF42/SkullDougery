@@ -64,7 +64,7 @@ void WiFiHub::UDP_Server_control(WiFiHub *me, bool enableFlag) {
 		}
 
 	} else { // TERMINATE THE UDP SERVER
-		if (me->udpServer = nullptr) {
+		if (me->udpServer == nullptr) {
 			// TODO: HOW TO STOP THE UDP SERVER??????
 			vTaskDelete(me->udpServerTask);
 			delete (me->udpServer);

@@ -18,6 +18,7 @@
 #include <errno.h>
 #include "audio/DACOutput.h"
 #include "audio/I2SOutput.h"
+#include "audio/Output.h"
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
 
