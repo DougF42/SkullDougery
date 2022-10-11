@@ -25,22 +25,21 @@
 #include "UDPServer.h"
 #include "../Sequencer/Message.h"
 
-class WiFiHub
-{
+class WiFiHub {
 public:
-	WiFiHub ();
-	virtual ~WiFiHub ();
+	WiFiHub();
+	virtual ~WiFiHub();
 	void WiFi_HUB_init();
-	void WiFi_STA_init ();
-	esp_netif_t *thisNetif;
+	void WiFi_STA_init();
 
 private:
-	static void wifi_event_handler(void* arg, esp_event_base_t event_base,
-	                                    int32_t event_id, void* event_data);
-	static void UDP_Server_wait_connection (void *Parameters);
+	static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+			int32_t event_id, void *event_data);
+	static void UDP_Server_wait_connection(void *Parameters);
+	static void UDP_Server_control(WiFiHub *me, bool enableFlag);
 	void UDP_Server_handleCommmands();
 	TaskHandle_t udpServerTask;
-	UDPServer *udpserver;
+	UDPServer *udpServer;
 
 };
 

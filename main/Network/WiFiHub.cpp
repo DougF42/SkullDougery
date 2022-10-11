@@ -38,6 +38,50 @@
 static const char *TAG = "+++wifi softAP";
 
 
+
+
+/**
+ * @brief start or stop the UDP sever
+ * This is called from the event loop
+ * to start - or stop - the UDP protocol sever.
+ *
+ * @param enableFlag if true, then start the server.
+ *          false to stop the server.
+ *          * UDP_Server_control(me, enableFlag);
+ */
+void WiFiHub::UDP_Server_control(WiFiHub *me, bool enableFlag) {
+
+	ESP_LOGD(TAG, "CALL TO UDP_Server_control - argument is %d", enableFlag);
+	if (enableFlag) {
+		// ENABLE the UDP SERVER
+		if (me->udpServer == nullptr) {
+			me->udpServer = new UDPServer(TASK_NAME::UDP);
+			xTaskCreate(UDPServer::startListenTask, "UDP Server", 8192,
+					(void*) me->udpServer, 1, &me->udpServerTask);
+		} else {
+			ESP_LOGD(TAG,
+					"Error in UDP_Server_control - enable requested, but server already enabled");
+		}
+
+	} else { // TERMINATE THE UDP SERVER
+		if (me->udpServer = nullptr) {
+			// TODO: HOW TO STOP THE UDP SERVER??????
+			vTaskDelete(me->udpServerTask);
+			delete (me->udpServer);
+			me->udpServer = nullptr;
+			ESP_LOGD(TAG,
+					"In UDP_Server_control: UDP SERVER STOP REQUESTED, but feature is not yet programmed!");
+		} else {
+			ESP_LOGD(TAG,
+					"Error in UDP_Server_control - enable requested, but server NOT running");
+		}
+	}
+	return;
+}
+
+
+
+
 /**
  * Watch for events...
  *  NOTE that this listener handles BOTH the HUB and the Access Point modes!!!
@@ -57,9 +101,10 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 	// Events as a HUB
 	if (event_base == WIFI_EVENT)
 	{
+		ESP_LOGD(TAG, "In UDP_Server WIFI_EVENT: EVENT is %d", event_id);
 		switch (event_id)
 		{
-			case (WIFI_EVENT_AP_STACONNECTED):
+			case (WIFI_EVENT_AP_STACONNECTED): //14
 				// Acting as a hub, someone connected to us.
 				event_connect = (wifi_event_ap_staconnected_t*) event_data;
 				ESP_LOGI(TAG,
@@ -67,7 +112,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 						MAC2STR(event_connect->mac), event_connect->aid );
 				break;
 
-			case (WIFI_EVENT_AP_STADISCONNECTED):
+			case (WIFI_EVENT_AP_STADISCONNECTED): //15
 				// Acting as a hub, someone disconnected from us.
 				event_disc = (wifi_event_ap_stadisconnected_t*) event_data;
 				ESP_LOGI(TAG,
@@ -75,13 +120,13 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 						MAC2STR(event_disc->mac), event_disc->aid );
 				break;
 
-			case (WIFI_EVENT_STA_START):
+			case (WIFI_EVENT_STA_START):  // 2
 				// WIFI has started - now connect to the network hub.
 				ESP_LOGI(TAG, "STATION START event.");
 				esp_wifi_connect ();
 				break;
 
-			case (WIFI_EVENT_STA_CONNECTED):
+			case (WIFI_EVENT_STA_CONNECTED): // 4
 				// WiFi has connected to the HUB, but does not yet have DHCP address.
 				event_connect_sta = (wifi_event_sta_connected_t*) event_data;
 				char ssid[32];
@@ -93,7 +138,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				// TODO: Time to force address ?
 				break;
 
-			case (WIFI_EVENT_STA_DISCONNECTED):
+			case (WIFI_EVENT_STA_DISCONNECTED): // 5
 				// Something happend - we disconnected from hub, or failed to connect
 				ESP_LOGI(TAG, "DISCONNECTED FROM HUB (event). Retry connection." );
 				esp_wifi_connect();
@@ -107,9 +152,11 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 
 	if (event_base == IP_EVENT)
 	{
+		ESP_LOGD(TAG, "In UDP_Server IP_EVENT: EVENT is %d", event_id);
+		if (IP_EVENT )
 		switch (event_id)
 		{
-			case(IP_EVENT_AP_STAIPASSIGNED):
+			case(IP_EVENT_AP_STAIPASSIGNED): // 2
 				event_disc = (wifi_event_ap_stadisconnected_t*) event_data;
 				ESP_LOGI(TAG, "Assigned address to a client!");
 				//  esp_ip4_addr_t ip;      /**< Interface IPV4 address */
@@ -119,22 +166,16 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 				ESP_LOGI(TAG, "Assigned address %s to a client!",inet_ntoa(got_ip->ip));
 			break;
 
-			case (IP_EVENT_STA_GOT_IP):
+			case (IP_EVENT_STA_GOT_IP):   // 0
 				// start the UDP server (Station mode only)
 				ESP_LOGI(TAG, "Got IP address: start UDP server" );
-				if (me->udpServerTask==0) {
-					me->udpserver=new UDPServer(TASK_NAME::UDP);
-					xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
-							(void*) me->udpserver, 1, &me->udpServerTask );
-				}
+				UDP_Server_control(me, true);
 				break;
 
-			case (IP_EVENT_STA_LOST_IP):
+			case (IP_EVENT_STA_LOST_IP): // 1
 				// TODO: Is this the right thing to do?
 				ESP_LOGI(TAG, "LOST IP! terminate UDP server?");
-
-				vTaskDelete(me->udpserver);
-				delete me->udpserver;
+				UDP_Server_control(me, false);
 				break;
 		} // end of case for IP events
 	} // end of IF for IP EVENTs
@@ -151,13 +192,13 @@ WiFiHub::~WiFiHub() {
  * Initializer
  */
  WiFiHub::WiFiHub() {
-	 udpserver=nullptr;
-	 udpServerTask=0;
+	 udpServer=nullptr;
+	 udpServerTask=nullptr;
 }
 
 
 /**
- * Set up the Access Point
+ * Set up the Access Point (that's us!)
  */
 void WiFiHub::WiFi_HUB_init ()
 {
@@ -214,12 +255,8 @@ void WiFiHub::WiFi_HUB_init ()
 	esp_netif_get_ip_info(nethandle, &ipinfo);
 	ESP_LOGI(TAG, "Server addr: %s  netmask: %s" , inet_ntoa(ipinfo.ip), inet_ntoa(ipinfo.netmask));
 
-	vTaskDelay(10000/portTICK_PERIOD_MS); // Give the AP time...
-
-	udpserver= new UDPServer(TASK_NAME::UDP);
-	xTaskCreate (UDPServer::startListenTask, "UDP Server", 8192,
-			(void*) udpserver, 1, &udpServerTask );
-
+	vTaskDelay(1000/portTICK_PERIOD_MS); // Give the AP time...
+	UDP_Server_control(this, true);
 }
 
 
@@ -229,8 +266,6 @@ void WiFiHub::WiFi_HUB_init ()
  */
 void WiFiHub::WiFi_STA_init ()
 {
-
-	UDPServer udpsever (TASK_NAME::UDP );
 
 	ESP_ERROR_CHECK(esp_netif_init () );
 
