@@ -46,7 +46,7 @@ UDPServer::~UDPServer() {
 }
 
 /**
- * Open the receiver socket, listen for incoming commands
+ * Open the receiver socket, listen for an incoming command
  * and process them. Stop if we see an error or disconnect.
  * @param  pointer to this instance of UDPServer.
  */

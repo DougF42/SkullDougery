@@ -175,7 +175,7 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
  *
  */
 void CmdDecoder::help() {
-	postResponse("Help, show, commit restart \n",RESPONSE_MORE);
+	postResponse("General commands: Help, show, commit restart \n",RESPONSE_MORE);
 	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
 	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
 	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
@@ -240,6 +240,7 @@ bool CmdDecoder::requireArgs( int tokenCount, char *tokens[], int required, long
 	}
 	return(true);
 }
+
 
 /**
  * Process the tokenized command, and send an appropriate response.
@@ -627,6 +628,62 @@ void CmdDecoder::setCommands (int tokCount, char *tokens[])
 		if (retVal==BAD_NUMBER)
 		{
 			postResponse("Not a boolean or bad value", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
+	}
+
+	else if (ISARG(1,RMNVS_NOD_MIN_POS))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		retVal = RmNvs::set_int(RMNVS_NOD_MIN_POS, val);
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a valid integer", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
+	}
+
+	else if (ISARG(1,RMNVS_NOD_MAX_POS))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		retVal = RmNvs::set_int(RMNVS_NOD_MAX_POS, val);
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a valid integer", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
+	}
+
+	else if (ISARG(1,RMNVS_ROT_MIN_POS))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		retVal = RmNvs::set_int(RMNVS_ROT_MIN_POS, val);
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a valid integer", RESPONSE_SYNTAX);
+		}
+		else
+		{
+			postResponse("OK", RESPONSE_OK);
+		}
+	}
+
+	else if (ISARG(1,RMNVS_ROT_MAX_POS))
+	{
+		uint32_t val = strtol (tokens[2], NULL, 0 );
+		retVal = RmNvs::set_int(RMNVS_ROT_MAX_POS, val);
+		if (retVal==BAD_NUMBER)
+		{
+			postResponse("Not a valid integer", RESPONSE_SYNTAX);
 		}
 		else
 		{
