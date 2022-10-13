@@ -39,7 +39,6 @@ private:
 
 	static void clockCallback(void *_me);
 	void doOneStep();
-	bool timer_state;
 };
 
 #endif /* MAIN_STEPPER_STEPPERDRIVER_H_ */

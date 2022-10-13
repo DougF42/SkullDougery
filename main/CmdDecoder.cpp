@@ -38,6 +38,30 @@
 
 static const char *TAG="CmdDecoder::";
 
+
+
+/**
+ * This sends a summary of the available commands.
+ *
+ */
+void CmdDecoder::help() {
+	postResponse("General commands: Help, show, commit restart \n",RESPONSE_MORE);
+	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
+	postResponse(" jaw n    range 0...1024", RESPONSE_MORE);
+	postResponse(" eye  n   (Both eyes)  range 0...1024", RESPONSE_MORE);
+	postResponse(" leye n   (Left eye)   range 0...1024", RESPONSE_MORE);
+	postResponse(" reye n   (Tight eye)  range 0...1024", RESPONSE_MORE);
+	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
+	postResponse(" nod(d) or rot(ate) - stepper commands:",RESPONSE_MORE);
+	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
+	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
+	postResponse("   Set: Home, Lower, Upper, Ramp",  RESPONSE_MORE);
+	postResponse("   Rotate: Absolute, Relative, Home, Lower, Upper",  RESPONSE_MORE);
+	postResponse("  ",RESPONSE_OK);
+}
+
+
+
 CmdDecoder::CmdDecoder (TASK_NAME myId):DeviceDef("Cmd Decoder") {
 	respBufSempahore=xSemaphoreCreateBinaryStatic(&respBufSemaphoreBuffer);
 	senderTaskName=myId;
@@ -171,25 +195,6 @@ int CmdDecoder::getIntArg(int tokNo, char *tokens[], int minVal, int maxVal) {
 }
 
 /**
- * This sends a summary of the available commands.
- *
- */
-void CmdDecoder::help() {
-	postResponse("General commands: Help, show, commit restart \n",RESPONSE_MORE);
-	postResponse(" Player controls:  PAUSE, STOP, RUN", RESPONSE_MORE);
-	postResponse(" jaw n    range 0...2000", RESPONSE_MORE);
-	postResponse(" eye  n   range 0...8192", RESPONSE_MORE);
-	postResponse(" set  key value (see show command output)", RESPONSE_MORE);
-	postResponse(" nod(d) or rot(ate) - stepper commands:",RESPONSE_MORE);
-	postResponse("   ENable DIsable EmergencyStop", RESPONSE_MORE);
-	postResponse("   Get: Absolute, Relative, Lower, Upper, Time", RESPONSE_MORE);
-	postResponse("   Set: Home, Lower, Upper, Ramp",  RESPONSE_MORE);
-	postResponse("   Rotate: Absolute, Relative, Home, Lower, Upper",  RESPONSE_MORE);
-	postResponse("  ",RESPONSE_OK);
-}
-
-
-/**
  * This tests the token count, and reports a suitable error
  * message if we dont have the right number of arguments.
  *
@@ -282,22 +287,10 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 			postResponse ("OK", RESPONSE_OK );
 		}
 
-	}	else if (ISCMD("eye" )) // Set EYE intensity
+	}	else if (ISCMD("eye" ) || ISCMD("leye") || ISCMD("reye")) // Set EYE intensity
 
 	{
-		if (!requireArgs (tokCount, tokens, 2, &val, nullptr ))
-		{
-			postResponse ("ERROR - bad value", RESPONSE_COMMAND_ERRR );
-		}
-		else
-		{
-			ESP_LOGD(TAG, "Dispatch - EYE = %ld", val );
-			msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
-			EVENT_ACTION_SETVALUE, val, val, nullptr );
-			SwitchBoard::send (msg );
-			postResponse ("OK", RESPONSE_OK );
-		}
-
+		setEyes(tokCount,tokens);
 
 	}	else if (ISCMD("set" )) // any of the SET commands
 	{
@@ -353,11 +346,6 @@ void CmdDecoder::noArguments(int tokCount, char *tokens[])
 		SwitchBoard::send(msg);
 		postResponse("OK", RESPONSE_OK);
 
-	} else if (ISCMD("EYES")) {
-		// Report eyeball settings.
-		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
-		SwitchBoard::send(msg);
-		postResponse("SORRY-NOT IMPLEMENTED", RESPONSE_COMMAND_ERRR);
 
 	} else	{
 		msg=Message::create_message(TASK_NAME::WAVEFILE, senderTaskName, SND_EVENT_PLAYER_REWIND, 0, 0, nullptr);
@@ -366,51 +354,37 @@ void CmdDecoder::noArguments(int tokCount, char *tokens[])
 	}
 }
 
-
 /**
- * @brief decode eyes command.
- * This command can have zero, one OR two arguments.
- *   if zero, then it is decoded by the 'noArguments' routine, and reports
- *         the setting of the two eyes.
- *   if only one, both eyes are set the same.
- *   if two, then the left and right eyes are set independently.
+ * Set the eyes. This handles the eyes, leye and reye command.
  */
-void CmdDecoder::setEyes (int tokCount, char *tokens[])
+void CmdDecoder::setEyes(int tokCount, char *tokens[])
 {
-	Message *msg;
-	long int left, right = 0;
-	if (tokCount == 2)
-	{   // set both eyes the same
-		if (!requireArgs (tokCount, tokens, 2, &left, nullptr ))
-		{
-			right = left;
-			msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
-					EVENT_ACTION_SETLEFT, left, right, nullptr );
-			SwitchBoard::send (msg );
-			postResponse("OK", RESPONSE_OK);
-		} else {
-			return; // error - bad or missing value
-		}
+	Message *msg=nullptr;
+	long int brightness;
+	if (! requireArgs( tokCount, tokens, 2, &brightness, nullptr)) return;
+	ESP_LOGD(TAG, "In setEyes. tokCount==%d", tokCount);
+	if (ISCMD("EYE"))
+	{
+		ESP_LOGD(TAG, "About to create EYES message");
+		msg=Message::create_message(TASK_NAME::EYES, senderTaskName, EVENT_ACTION_SETVALUE, brightness, 0, nullptr);
+		ESP_LOGD(TAG, "Message created");
 	}
 
-	if (requireArgs (tokCount, tokens, 3, &left, &right ))
-	{   // set left and right eye seperatly
-		msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
-				EVENT_ACTION_SETLEFT, left, right, nullptr );
-		SwitchBoard::send (msg );
-
-		msg = Message::create_message (TASK_NAME::EYES, senderTaskName,
-				EVENT_ACTION_SETLEFT, left, right, nullptr );
-		SwitchBoard::send (msg );
-	} else {
-		return;  // error - bad or missing value
+	else if (ISCMD("LEYE"))
+	{
+		msg=Message::create_message(TASK_NAME::EYES, senderTaskName, EVENT_ACTION_SETLEFT, brightness, 0, nullptr);
 	}
 
+	else if (ISCMD("REYE"))
+	{
+		msg=Message::create_message(TASK_NAME::EYES, senderTaskName, EVENT_ACTION_SETRIGHT, brightness, 0, nullptr);
+	}
+	ESP_LOGD(TAG, "About to send message:");
 
-	postResponse ("OK", RESPONSE_OK );
-	return;
+	SwitchBoard::send(msg);
+	ESP_LOGD(TAG, "Command sent to device...");
+	postResponse("OK", RESPONSE_OK);
 }
-
 
 /*
  *

@@ -18,16 +18,18 @@
 #include "driver/ledc.h"
 #include "Sequencer/DeviceDef.h"
 #include "Interpolate.h"
+
 #define EVENT_ACTION_SETLEFT  100
 #define EVENT_ACTION_SETRIGHT 101
 class PwmDriver : DeviceDef{
 public:
 	PwmDriver(const char *name);
 	virtual ~PwmDriver();
-	void setDutyCycle(ledc_channel_t channel, int duty) ;
-	ledc_channel_t	ch_Left_eye;  // assigned during init
-	ledc_channel_t	ch_right_eye; // assigned during init
+
+	ledc_channel_t	ch_Left_eye;
+	ledc_channel_t	ch_right_eye;
 	ledc_channel_t	ch_jaw;
+
 	void callBack(const Message *msg);
 	inline int getMaxLedDuty()   {return (maxLedDuty);}
 	inline int getMaxServoDuty() {return (maxServoDuty); }

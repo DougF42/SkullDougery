@@ -118,7 +118,7 @@ void app_main ()
 #endif
 	while (1)
 	{
-		vTaskDelay (5000 / portTICK_PERIOD_MS ); // Keep me alive
+		vTaskDelay (200 / portTICK_PERIOD_MS ); // Keep me alive
 	}
 
 }

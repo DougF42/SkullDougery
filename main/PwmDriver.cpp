@@ -39,6 +39,7 @@
 #include "esp_err.h"
 #include "sdkconfig.h"
 #include "esp_log.h"
+#include "driver/ledc.h"
 
 #include "Sequencer/DeviceDef.h"
 #include "Sequencer/Message.h"
@@ -67,12 +68,7 @@ PwmDriver::PwmDriver (const char *name) :
 	if (alreadyInited) return;
 	alreadyInited = true;
 	interpJaw.setLimitFlag();
-	interpJaw.AddToTable(0, 0);
-	interpJaw.AddToTable(1024, (1 << LED_DUTY_RES_BITS)-1);
-
 	interpEyes.setLimitFlag();
-	interpEyes.AddToTable(0, 0);
-	interpEyes.AddToTable(1024,(1 << SERVO_DUTY_RES_BITS)-1);
 
 #ifdef INCLUDE_FAST
 	ch_Left_eye  = LEDC_CHANNEL_0;
@@ -92,7 +88,16 @@ PwmDriver::PwmDriver (const char *name) :
 	maxLedDuty = std::floor (((1 << LED_DUTY_RES_BITS) - 1) );
 	ESP_LOGI(TAG, "...Calculated maxLedDuty factor: %d ", maxLedDuty );
 	ESP_LOGI(TAG, "");
+	interpEyes.AddToTable(0, 0);
+	interpEyes.AddToTable(1024, (1<<LED_DUTY_RES_BITS)-1);
 
+	ESP_LOGI(TAG, "SERVO setting range for .7 to 2.5 millisec is %d to %d", servo_min, servo_max);
+	ESP_LOGD(TAG, "TEST EYE INTERP: MAX=%d", (1<<SERVO_DUTY_RES_BITS)-1);
+	ESP_LOGD(TAG, "TEST EYE INTERP: 10=%d", interpEyes.interp(10));
+	ESP_LOGD(TAG, "TEST EYE INTERP: 500=%d", interpEyes.interp(500));
+	ESP_LOGD(TAG, "TEST EYE INTERP: 1000=%d", interpEyes.interp(1000));
+	ESP_LOGD(TAG, "DUMP EYE TABLE:");
+	interpEyes.dumpTable();
 #endif
 
 #ifdef INCLUDE_SERVO
@@ -107,13 +112,10 @@ PwmDriver::PwmDriver (const char *name) :
 	// Our servo ranges 180 deg, but we only want 90 deg or so.
 	servo_min =.0007/.020 * maxServoDuty; // .7 millisec out of 20 for 0 deg.
 	servo_max =.0025/.020 * maxServoDuty; // 2.5 millisec out of 20 for 180 deg.
-	interpEyes.AddToTable(0, servo_min);
-	interpEyes.AddToTable(1000, servo_max);
-	ESP_LOGI(TAG, "SERVO setting range for .7 to 2.5 millisec is %d to %d", servo_min, servo_max);
 
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.AddToTable(0, servo_min);
-	interpJaw.AddToTable(1000,servo_max);  // 2000 is max value from audio - arbitrary.
+	interpJaw.AddToTable(1024,servo_max);  // 2000 is max value from audio - arbitrary.
 #endif
 }
 
@@ -149,6 +151,7 @@ void PwmDriver::callBack(const Message *msg) {
 		ESP_LOGD(TAG,
 				"PWMDRIVER Callback: Set EYE(s) to %ld. Actual value will be %d",
 				msg->value, duty);
+
 		switch (msg->event) {
 		case (EVENT_ACTION_SETLEFT):
 			ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
@@ -162,8 +165,8 @@ void PwmDriver::callBack(const Message *msg) {
 
 		case (EVENT_ACTION_SETVALUE):
 			ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch_right_eye, duty);
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
 			ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch_right_eye);
+			ledc_set_duty(LEDC_HIGH_SPEED_MODE, ch_Left_eye, duty);
 			ledc_update_duty(LEDC_HIGH_SPEED_MODE, ch_Left_eye);
 			break;
 		}
@@ -173,7 +176,7 @@ void PwmDriver::callBack(const Message *msg) {
 		if (msg->destination == TASK_NAME::JAW) {
 			duty = interpJaw.interp(msg->value);
 				ESP_LOGI(TAG,
-						"PWMDRIVER Callback*: Set MOUTH to %ld. Actual value will be %d",
+						"PWMDRIVER Callback*: Set JAW to %ld. Actual value will be %d",
 						msg->value, duty);
 
 			ledc_set_duty(LEDC_LOW_SPEED_MODE, ch_jaw, duty);

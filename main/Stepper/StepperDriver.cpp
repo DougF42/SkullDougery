@@ -39,7 +39,7 @@ StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
   myTimer=nullptr;
   nodControl=nullptr;
   rotControl=nullptr;
-  timer_state=false;
+  timerState=false;
 }
 
 StepperDriver::~StepperDriver ()
@@ -117,18 +117,21 @@ void StepperDriver::clockCallback(void *arg) {
 
 /**
  * Stop or start the one-shot timer, based on the argument
- * -1 stops the counter. 0 sets a default value of MIN_CLOCK_RATE.
+ *    -1 stops the counter.
+ *     0 sets a default value of MIN_CLOCK_RATE.
+ *     >0 sets the indicated interval (in microseconds)
+ *
  * If the timer is already in that mode, do nothing.
  * @param flag - boolean. true to start, false to stop timer.
  *
  */
 void StepperDriver::controlTimer(int64_t value) {
-  if (value == timerState) return;
-   if (value<0)
+  if (value == timerState) return; // no change
+  if (value<0)
     {
       if (esp_timer_is_active(myTimer))  esp_timer_stop(myTimer);
 		
-    } else  if (value<0)
+    } else  if (value==0)
     {
       esp_timer_start_once(myTimer, MIN_CLOCK_RATE); // Interval in uSeconds.
 		
@@ -141,6 +144,7 @@ void StepperDriver::controlTimer(int64_t value) {
 #endif
 
     }
+  timerState=value;
 }
 
 
