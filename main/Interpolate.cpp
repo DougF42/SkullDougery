@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include "Interpolate.h"
 
+const static char *TAG="INTERPOLATE";
+
 Interpolate::Interpolate() {
 	// Auto-generated constructor stub
 	lastTabIdx=-1;
@@ -76,31 +78,32 @@ unsigned Interpolate::interp (int x)
 	// First, find our range
 	int highIdx = 0;
 	int lowIdx = 0;
+
+	// Walk the table
 	for (highIdx = 0; highIdx < lastTabIdx; highIdx++ )
 	{
-		// Check HIGH limit
-		if (xTable[highIdx] >= x)
+		if (x <= xTable[highIdx])
 		{
-			if (limitFlag)
-			{
-				return (yTable[highIdx]);
-			}
-			else
-			{
-				break;
-			}
+			break;
 		}
 	}
-
-	if (highIdx==0) {
-		if ((limitFlag))
-		{
-			return (yTable[0]);
-		}
-
-		lowIdx = highIdx - 1;
+	ESP_LOGD(TAG, "Search returned index %d (X value %d) ",highIdx, xTable[highIdx] );
+	if ( (x >= xTable[highIdx]) && limitFlag)
+	{
+		ESP_LOGD(TAG, "RETUN HIGH LIMIT");
+		return(yTable[highIdx]);
 	}
 
+	if ( (x <= xTable[0]) && limitFlag)
+	{
+		ESP_LOGD(TAG, "RETURN LOW LIMIT");
+		return(yTable[0]);
+	}
+	if (highIdx == 0) highIdx=1;
+	lowIdx = highIdx - 1;
+
+	ESP_LOGD(TAG, "Indexes are %d and %d", lowIdx, highIdx);
+	ESP_LOGD(TAG, "X limits are %d and %d. Target is %d", xTable[lowIdx], xTable[highIdx], x);
 	int res = yTable[lowIdx] + (x - xTable[highIdx - 1]) * slope[highIdx];
 	return (res);
 }

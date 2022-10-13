@@ -16,10 +16,16 @@
 #ifndef TABLEMAX
 #define TABLEMAX 10
 #endif
+
+//ONLY for debugging
+
+#include "esp_log.h"
+
 class Interpolate {
 public:
 	Interpolate();
 	inline void setLimitFlag() {limitFlag=true; }
+	inline bool getLimitFlag() { return(limitFlag);}
 	void AddToTable(int idx, unsigned int value);
 	int table[TABLEMAX];
 	virtual ~Interpolate();

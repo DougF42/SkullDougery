@@ -67,8 +67,6 @@ PwmDriver::PwmDriver (const char *name) :
 	devName = strdup ("PWMDRIVER" );
 	if (alreadyInited) return;
 	alreadyInited = true;
-	interpJaw.setLimitFlag();
-	interpEyes.setLimitFlag();
 
 #ifdef INCLUDE_FAST
 	ch_Left_eye  = LEDC_CHANNEL_0;
@@ -88,6 +86,7 @@ PwmDriver::PwmDriver (const char *name) :
 	maxLedDuty = std::floor (((1 << LED_DUTY_RES_BITS) - 1) );
 	ESP_LOGI(TAG, "...Calculated maxLedDuty factor: %d ", maxLedDuty );
 	ESP_LOGI(TAG, "");
+	interpEyes.setLimitFlag();
 	interpEyes.AddToTable(0, 0);
 	interpEyes.AddToTable(1024, (1<<LED_DUTY_RES_BITS)-1);
 
@@ -109,6 +108,7 @@ PwmDriver::PwmDriver (const char *name) :
 	servo_max =.0025/.020 * maxServoDuty; // 2.5 millisec out of 20 for 180 deg.
 
 	// SET UP INTERP TABLE FOR JAW
+	interpJaw.setLimitFlag();
 	interpJaw.AddToTable(0, servo_min);
 	interpJaw.AddToTable(1024,servo_max);  // 2000 is max value from audio - arbitrary.
 #endif

@@ -160,15 +160,12 @@ void UDPServer::postResponse (const char *respTxt, responseStatus_t respcode)
 	tmpbuf[0] = '\0';
 	strcpy (tmpbuf, respTxt );
 	strcat (tmpbuf, "\n");
-
-
-	//ESP_LOGD(TAG, "POST RESPONSE: %s", tmpbuf);
 	int err = 0;
 	while (err <= 0)
 	{
+		errno=0;
 		err = sendto (sock, tmpbuf, txtLen, 0,
 				(struct sockaddr*) &source_addr, sizeof(source_addr) );
-		vTaskDelay(1); // Allow wifi to run
 
 		if (err < 0)
 		{
