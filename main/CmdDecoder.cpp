@@ -102,7 +102,7 @@ int CmdDecoder::addToBuffer (const char *dta, int dtaLen)
 	{
 		if (dta[idx] == '\0')
 		{
-			ESP_LOGD(TAG, "See NULL string terminator");
+			// ESP_LOGD(TAG, "See NULL string terminator");
 			flush();
 			break;
 
@@ -110,7 +110,7 @@ int CmdDecoder::addToBuffer (const char *dta, int dtaLen)
 
 		if ((dta[idx] == '\r') || (dta[idx] == '\n'))
 		{
-//			ESP_LOGD(TAG, "See EOL");
+			// ESP_LOGD(TAG, "See EOL");
 			parseCommand ();
 			flush();
 			break;
@@ -164,8 +164,6 @@ void CmdDecoder::parseCommand ()
 		if (tokens[tokNo] == NULL) break; // all done
 	}
 
-//	ESP_LOGD(TAG, "parseCommand: We have %d tokens\n", tokNo);
-//	ESP_LOGD(TAG, "parseCommand: command is %s", tokens[0]);
 	dispatchCommand (tokNo, tokens);
 
 	return;
@@ -264,7 +262,7 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 	{
 		ESP_LOGD(TAG, "  TOKEN %d is `%s`", idx, tokens[idx]);
 	}
-	ESP_LOGD(TAG, "------");
+//	ESP_LOGD(TAG, "------");
 	long int val;
 
 	if (tokCount==1)
@@ -280,7 +278,6 @@ void CmdDecoder::dispatchCommand (int tokCount, char *tokens[])
 		}
 		else
 		{
-			ESP_LOGD(TAG, "Dispatch - jaw=%ld", val );
 			msg = Message::create_message (TASK_NAME::JAW, senderTaskName,
 			EVENT_ACTION_SETVALUE, val, 0, nullptr );
 			SwitchBoard::send (msg );
@@ -362,12 +359,10 @@ void CmdDecoder::setEyes(int tokCount, char *tokens[])
 	Message *msg=nullptr;
 	long int brightness;
 	if (! requireArgs( tokCount, tokens, 2, &brightness, nullptr)) return;
-	ESP_LOGD(TAG, "In setEyes. tokCount==%d", tokCount);
+
 	if (ISCMD("EYE"))
 	{
-		ESP_LOGD(TAG, "About to create EYES message");
 		msg=Message::create_message(TASK_NAME::EYES, senderTaskName, EVENT_ACTION_SETVALUE, brightness, 0, nullptr);
-		ESP_LOGD(TAG, "Message created");
 	}
 
 	else if (ISCMD("LEYE"))
@@ -379,10 +374,8 @@ void CmdDecoder::setEyes(int tokCount, char *tokens[])
 	{
 		msg=Message::create_message(TASK_NAME::EYES, senderTaskName, EVENT_ACTION_SETRIGHT, brightness, 0, nullptr);
 	}
-	ESP_LOGD(TAG, "About to send message:");
 
 	SwitchBoard::send(msg);
-	ESP_LOGD(TAG, "Command sent to device...");
 	postResponse("OK", RESPONSE_OK);
 }
 

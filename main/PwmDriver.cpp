@@ -92,12 +92,7 @@ PwmDriver::PwmDriver (const char *name) :
 	interpEyes.AddToTable(1024, (1<<LED_DUTY_RES_BITS)-1);
 
 	ESP_LOGI(TAG, "SERVO setting range for .7 to 2.5 millisec is %d to %d", servo_min, servo_max);
-	ESP_LOGD(TAG, "TEST EYE INTERP: MAX=%d", (1<<SERVO_DUTY_RES_BITS)-1);
-	ESP_LOGD(TAG, "TEST EYE INTERP: 10=%d", interpEyes.interp(10));
-	ESP_LOGD(TAG, "TEST EYE INTERP: 500=%d", interpEyes.interp(500));
-	ESP_LOGD(TAG, "TEST EYE INTERP: 1000=%d", interpEyes.interp(1000));
-	ESP_LOGD(TAG, "DUMP EYE TABLE:");
-	interpEyes.dumpTable();
+
 #endif
 
 #ifdef INCLUDE_SERVO
@@ -145,9 +140,11 @@ PwmDriver::~PwmDriver ()
  *
  */
 void PwmDriver::callBack(const Message *msg) {
-	uint32_t duty=0;
+	uint32_t duty = msg->value;
+
 	if (msg->destination == TASK_NAME::EYES) {
 		duty = interpEyes.interp(duty);
+
 		ESP_LOGD(TAG,
 				"PWMDRIVER Callback: Set EYE(s) to %ld. Actual value will be %d",
 				msg->value, duty);
