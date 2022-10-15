@@ -172,20 +172,32 @@ void StepperDriver::doOneStep()
 	// NOTE: We must use micros here from arduino.h, because it
 	//       truncates time down to unsigned long - as used by
 	//       the Arduino library.
-	unsigned long now = micros();
+	int64_t nxtInterval=0;
 
-	unsigned long nextNodTime=nodControl->GetTimeToNextStep();
-	nextNodTime = (nextNodTime > now)? nextNodTime - now: 2^63;
+	if (nodControl->GetState() == RUNNING)
+	{
+		nxtInterval=nodControl->GetTimeToNextStep();
+		// ESP_LOGD(TAG,"NOD time returns %lld", nxtInterval);
+	}
 
-	unsigned long nextRotTime=rotControl->GetTimeToNextStep();
-	nextRotTime = (nextRotTime > now)? nextRotTime - now: 2^63;
+	if (rotControl->GetTimeToNextStep())
+	{
+		unsigned long x=rotControl->GetTimeToNextStep();
+		// ESP_LOGD(TAG,"NOD time returns %ld", x);
+		if (nodControl->GetState() == RUNNING)
+		{
+			nxtInterval=(nxtInterval < x)?x:nxtInterval;
+		} else
+		{
+			nxtInterval = x;
+		}
+	}
 
-//	ESP_LOGD(TAG, "NOW is %lu.  NextStepAt: %ld   ROT Interval: %lu",
-//			now, rotControl->GetTimeToNextStep(), nextRotTime);
+	//ESP_LOGD(TAG, "NOW is %lu.  NextStepAt: %lu   ROT Interval: %lu",
+	//		now, rotControl->GetTimeToNextStep(), nextRotTime);
 
-	uint64_t delayForUsec=(nextNodTime < nextRotTime)? nextNodTime:nextRotTime;
-	delayForUsec = (delayForUsec > 10000000LL) ? 10000000LL:delayForUsec;
-	controlTimer(delayForUsec);
+	controlTimer(nxtInterval); // Min Interval - 10
+
 }
 
 

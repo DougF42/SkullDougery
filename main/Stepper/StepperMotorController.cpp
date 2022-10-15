@@ -125,10 +125,12 @@ void StepperMotorController::Dump()
 // GetTimeToNextStep
 //    This is used to determine how long before we need
 // to call 'Run' again.
+//
+// @return 0 if not running. Time to next event otherwise
 //=========================================================
 unsigned long  StepperMotorController::GetTimeToNextStep   () {
-	if (MotorState != RUNNING) return(ULONG_MAX);
-	return (NextStepMicros);
+	if (MotorState != RUNNING) return(0);
+	return (NextStepMicros-micros());
 }
 
 //=========================================================
@@ -332,7 +334,7 @@ RunReturn_t StepperMotorController::Run ()
 					}
 					else
 					{
-						NextStepMicros = 1L;
+						NextStepMicros += 1L;
 					}
 				}
 			}
