@@ -129,8 +129,7 @@ void StepperMotorController::Dump()
 // @return 0 if not running. Time to next event otherwise
 //=========================================================
 unsigned long  StepperMotorController::GetTimeToNextStep   () {
-	if (MotorState != RUNNING) return(0);
-	return (NextStepMicros-micros());
+	return (NextStepMicros);
 }
 
 //=========================================================
@@ -334,7 +333,7 @@ RunReturn_t StepperMotorController::Run ()
 					}
 					else
 					{
-						NextStepMicros += 1L;
+						NextStepMicros += 5L; // DEF ensure SOME time until next
 					}
 				}
 			}

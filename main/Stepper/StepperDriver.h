@@ -14,8 +14,9 @@
 #include "StepperMotorController.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "freertos/semphr.h"
 
-
+#define USE_TIMER
 
 #define EVENT_STEPPER_EXECUTE_CMD 101
 #define EVENT_GET_TIME            102
@@ -34,9 +35,9 @@ public:
 private:
 	StepperMotorController *nodControl;
 	StepperMotorController *rotControl;
+
 	esp_timer_handle_t myTimer;
 	bool timerState;
-
 	static void clockCallback(void *_me);
 	void doOneStep();
 };

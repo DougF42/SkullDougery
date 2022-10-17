@@ -14,12 +14,15 @@
 #include "freertos/semphr.h"
 #include "string.h"
 #include "Arduino.h"
+#include "esp_task_wdt.h"
 
 #include "../config.h"
 #include "../Sequencer/SwitchBoard.h"
 #include "../Sequencer/DeviceDef.h"
 #include "../Sequencer/Message.h"
 #include "../Parameters/RmNvs.h"
+
+
 
 // If defined, then the  'doOneStep' method is always called
 // at the MIN_CLOCK_RATE value.
@@ -30,16 +33,18 @@
 
 // The minimum rate (in uSeconds) that 'run' will be called, or
 // the actual rate that 'run' is called (in microseconds)
-#define MIN_CLOCK_RATE 500
+#define MIN_CLOCK_RATE 100
 
 static const char *TAG="STEPPER DRIVER::";
 
 StepperDriver::StepperDriver (const char *name) :DeviceDef(name)
 {
-  myTimer=nullptr;
-  nodControl=nullptr;
-  rotControl=nullptr;
-  timerState=false;
+#ifdef USE_TIMER
+  myTimer    = nullptr;
+  timerState = false;
+#endif
+  nodControl = nullptr;
+  rotControl = nullptr;
 }
 
 StepperDriver::~StepperDriver ()
@@ -62,7 +67,6 @@ void StepperDriver::callBack (const Message *msg)
 {
 	Message *resp;
 	controlTimer(-1);
-
 	StepperMotorController *target = nullptr;
 
 	if (msg->event == EVENT_STEPPER_EXECUTE_CMD) {
@@ -84,6 +88,7 @@ void StepperDriver::callBack (const Message *msg)
 
 		// RUN the command on the target, return a appropriate response
 		const char *res = target->ExecuteCommand(msg->text);
+
 		ESP_LOGD(TAG, "Command:'%s'   response: '%s'", msg->text, res);
 
 		if ((res == nullptr) || (res[0] == '\0')) {   // no resp text means "OK"
@@ -96,11 +101,10 @@ void StepperDriver::callBack (const Message *msg)
 
 		SwitchBoard::send(resp);
 		doOneStep();
-	
 	}
 }
 
-
+#ifdef USE_TIMER
 /**
  * This is the timer callback - each time thru
  * we call the 'run' function of each StepperMotorController.
@@ -126,19 +130,22 @@ void StepperDriver::clockCallback(void *arg) {
  *
  */
 void StepperDriver::controlTimer(int64_t value) {
-  if (value == timerState) return; // no change
+  // if (value == timerState) return; // no change
+  ESP_LOGD(TAG, "controlTimer: arg is %lld", value);
+
   if (value<0)
-    {
-      if (esp_timer_is_active(myTimer))  esp_timer_stop(myTimer);
+    {  // stop the timer
+       if (esp_timer_is_active(myTimer))  esp_timer_stop(myTimer);
 		
     } else  if (value==0)
-    {
+    {  // run using default delay time
+
       esp_timer_start_once(myTimer, MIN_CLOCK_RATE); // Interval in uSeconds.
 		
-    }else if (value>0)
-    {
+    } else if (value>0)
+    {  // run using indicated time delay
 #ifdef STEPPER_FIXED_CYCLE_TIME
-           esp_timer_start_once(myTimer,MIN_CLOCK_RATE ); // Interval in uSeconds.
+           esp_timer_start_once(myTimer, value); // Interval in uSeconds.
 #else
 	   esp_timer_start_once(myTimer,value ); // Interval in uSeconds.
 #endif
@@ -165,41 +172,31 @@ void StepperDriver::controlTimer(int64_t value) {
  */
 void StepperDriver::doOneStep()
 {
-	//nodControl->Dump();
 	nodControl->Run();
 	rotControl->Run();
 
-	// NOTE: We must use micros here from arduino.h, because it
-	//       truncates time down to unsigned long - as used by
-	//       the Arduino library.
-	int64_t nxtInterval=0;
+	int64_t timeOfNextPass = micros()+1000; // If nothing else, we cycle 1 msec.
 
 	if (nodControl->GetState() == RUNNING)
 	{
-		nxtInterval=nodControl->GetTimeToNextStep();
-		// ESP_LOGD(TAG,"NOD time returns %lld", nxtInterval);
-	}
-
-	if (rotControl->GetTimeToNextStep())
-	{
-		unsigned long x=rotControl->GetTimeToNextStep();
-		// ESP_LOGD(TAG,"NOD time returns %ld", x);
-		if (nodControl->GetState() == RUNNING)
+		timeOfNextPass=nodControl->GetTimeToNextStep();
+		if (timeOfNextPass < micros())
 		{
-			nxtInterval=(nxtInterval < x)?x:nxtInterval;
-		} else
-		{
-			nxtInterval = x;
+			ESP_LOGD(TAG, "Error: nod control returned negative value: %lld", timeOfNextPass);
 		}
 	}
 
-	//ESP_LOGD(TAG, "NOW is %lu.  NextStepAt: %lu   ROT Interval: %lu",
-	//		now, rotControl->GetTimeToNextStep(), nextRotTime);
+#ifdef tempddd
+	if (rotControl->GetState() == RUNNING)
+	{
+		int64_t nxtRotTime = rotControl->GetTimeToNextStep();
+		timeOfNextPass = (timeOfNextPass < nxtRotTime)? timeOfNextPass: nxtRotTime;
+	}
+#endif
 
-	controlTimer(nxtInterval); // Min Interval - 10
-
+	controlTimer(timeOfNextPass-micros());
 }
-
+#endif
 
 /**
  * This is the 'StepperDriver' task.
@@ -219,6 +216,7 @@ void StepperDriver::runTask(void *param) {
 	StepperDriver *me = (StepperDriver *)param;
 	char cmd[64];
 	const char *resp;
+
 	// initialize the controllers
 	me->rotControl = new StepperMotorController(UNIPOLAR, ROTATE_PINA, ROTATE_PINB, ROTATE_PINC,ROTATE_PIND, STEPPER_NO_LED);
 	SwitchBoard::registerDriver(TASK_NAME::ROTATE, me);
@@ -250,6 +248,7 @@ void StepperDriver::runTask(void *param) {
 	sprintf(cmd, "SU%d", RmNvs::get_int(RMNVS_NOD_MAX_POS));
 	me->nodControl->ExecuteCommand(cmd);
 
+#ifdef USE_TIMER
 	// Initialize the timer
 	esp_timer_create_args_t timer_cfg={};
 	timer_cfg.callback=&me->clockCallback;
@@ -259,11 +258,12 @@ void StepperDriver::runTask(void *param) {
 	ESP_ERROR_CHECK(esp_timer_create(  &timer_cfg, &(me->myTimer)));
 
 	me->controlTimer(MIN_CLOCK_RATE); // start the clock
-
+#endif
 	// Sit and twiddle our thumbs while the timer does all the work
 	while(true)
 	{
-		vTaskDelay(10000);
+		vTaskDelay(20);
+
 	}
 
 }
