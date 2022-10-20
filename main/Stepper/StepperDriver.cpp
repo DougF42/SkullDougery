@@ -126,32 +126,20 @@ void StepperDriver::clockCallback(void *arg) {
  *     >0 sets the indicated interval (in microseconds)
  *
  * If the timer is already in that mode, do nothing.
- * @param flag - boolean. true to start, false to stop timer.
+ * @param flag - if 0, stop the timer. Non-zero - set the
+ *      one-shot timer for the indicated number of microseconds.
  *
  */
 void StepperDriver::controlTimer(int64_t value) {
-  // if (value == timerState) return; // no change
   ESP_LOGD(TAG, "controlTimer: arg is %lld", value);
 
-  if (value<0)
-    {  // stop the timer
-       if (esp_timer_is_active(myTimer))  esp_timer_stop(myTimer);
-		
-    } else  if (value==0)
-    {  // run using default delay time
+  // To set a new interval, the timer MUST be stopped.
+  esp_timer_stop(myTimer);
 
-      esp_timer_start_once(myTimer, MIN_CLOCK_RATE); // Interval in uSeconds.
-		
-    } else if (value>0)
-    {  // run using indicated time delay
-#ifdef STEPPER_FIXED_CYCLE_TIME
-           esp_timer_start_once(myTimer, value); // Interval in uSeconds.
-#else
-	   esp_timer_start_once(myTimer,value ); // Interval in uSeconds.
-#endif
-
+  if (value != 0)
+    {  // set the requested delay period
+      esp_timer_start_once(myTimer, value); // Interval in uSeconds.
     }
-  timerState=value;
 }
 
 
@@ -175,26 +163,23 @@ void StepperDriver::doOneStep()
 	nodControl->Run();
 	rotControl->Run();
 
-	int64_t timeOfNextPass = micros()+1000; // If nothing else, we cycle 1 msec.
+	int64_t stepLength_usecs=1000;  // if not running, keep busy?
 
 	if (nodControl->GetState() == RUNNING)
 	{
-		timeOfNextPass=nodControl->GetTimeToNextStep();
-		if (timeOfNextPass < micros())
-		{
-			ESP_LOGD(TAG, "Error: nod control returned negative value: %lld", timeOfNextPass);
-		}
+		stepLength_usecs=nodControl->GetTimeToNextStep();
 	}
 
 #ifdef tempddd
 	if (rotControl->GetState() == RUNNING)
 	{
-		int64_t nxtRotTime = rotControl->GetTimeToNextStep();
-		timeOfNextPass = (timeOfNextPass < nxtRotTime)? timeOfNextPass: nxtRotTime;
+
+		int64_t nxtRotTime = stepLength_usecs = rotControl->GetTimeToNextStep();
+		stepLength_usecs = (stepLength_usecs < nxtRotTime)? timeOfNextPass: nxtRotTime;
 	}
 #endif
 
-	controlTimer(timeOfNextPass-micros());
+	controlTimer(stepLength_usecs);
 }
 #endif
 

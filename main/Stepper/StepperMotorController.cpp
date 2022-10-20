@@ -121,16 +121,41 @@ void StepperMotorController::Dump()
 			Homed, static_cast<int>(MotorState), static_cast<int>(RunReturn));
 	ESP_LOGD("- - -","- - -");
 }
+
+
 //=========================================================
-// GetTimeToNextStep
+// DEF:  GetTimeToNextStep
 //    This is used to determine how long before we need
 // to call 'Run' again.
+//    It actually duplicates the calculation in 'Run',
+//    except we need to know the requested delay rather than
+//    the actual time of the next step.
 //
-// @return 0 if not running. Time to next event otherwise
+// @return 0 if not running. Time (microsecs) to next
+//           event otherwise
 //=========================================================
-unsigned long  StepperMotorController::GetTimeToNextStep   () {
-	return (NextStepMicros);
+unsigned long StepperMotorController::GetTimeToNextStep ()
+{
+	long int stepLength_usecs;
+	if (Homed && MotorState == RUNNING)
+	{
+		// We are running
+		if (Velocity > 0)
+		{
+			stepLength_usecs = 1000000L / Velocity;
+		}
+		else
+		{
+			// Still running-need a little delay!
+			stepLength_usecs = 500L; // assume 1 millisec
+		}
+	} else {
+		// Not running
+		stepLength_usecs=0L;
+	}
+	return (stepLength_usecs);
 }
+
 
 //=========================================================
 //  Run:
@@ -149,6 +174,12 @@ RunReturn_t StepperMotorController::Run ()
 	// If motor is RUNNING and it's time for it to step, then issue step pulse
 	if (Homed && MotorState == RUNNING)
 	{
+		// DEF Handle clock wrap-around after 2^31-1 seconds
+		static int lastMicros=0;
+		if ( (micros() < lastMicros) && (NextStepMicros > lastMicros) )
+				NextStepMicros= + 0xFFFFFFFFUL;
+		lastMicros=micros();
+
 		// Is it time to step?
 		if (micros () >= NextStepMicros)
 		{
