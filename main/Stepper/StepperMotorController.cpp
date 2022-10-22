@@ -131,29 +131,22 @@ void StepperMotorController::Dump()
 //    except we need to know the requested delay rather than
 //    the actual time of the next step.
 //
-// @return 0 if not running. Time (microsecs) to next
+// @return 0 if not running. Time (microSsecs) to next
 //           event otherwise
 //=========================================================
-unsigned long StepperMotorController::GetTimeToNextStep ()
+unsigned long StepperMotorontroller::GetTimeToNextStep ()
 {
-	long int stepLength_usecs;
-	if (Homed && MotorState == RUNNING)
-	{
-		// We are running
-		if (Velocity > 0)
-		{
-			stepLength_usecs = 1000000L / Velocity;
-		}
-		else
-		{
-			// Still running-need a little delay!
-			stepLength_usecs = 500L; // assume 1 millisec
-		}
-	} else {
-		// Not running
-		stepLength_usecs=0L;
-	}
-	return (stepLength_usecs);
+  unsigned long int stepLength_usecs=0L;
+  
+  if (Homed && MotorState == RUNNING)
+    {
+      stepLength_usecs=(NextStepMicros >(micros()+5))?
+	NextStepMicros - micros():micros()+100;
+    } else {
+     stepLength_usecs = 0L;
+    }
+  
+  return (stepLength_usecs);
 }
 
 

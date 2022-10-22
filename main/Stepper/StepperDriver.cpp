@@ -29,11 +29,11 @@
 // Otherwise, each time thru 'doOneStep' we calculate the
 // set the timer to that interval (never less
 // than STEPPER_FIXED_CYCLE_TIME) before calling 'doOneStep' again
-#define STEPPER_FIXED_CYCLE_TIME 1
+// #define STEPPER_FIXED_CYCLE_TIME 1
 
 // The minimum rate (in uSeconds) that 'run' will be called, or
 // the actual rate that 'run' is called (in microseconds)
-#define MIN_CLOCK_RATE 100
+#define MIN_CLOCK_RATE 500
 
 static const char *TAG="STEPPER DRIVER::";
 
@@ -121,13 +121,14 @@ void StepperDriver::clockCallback(void *arg) {
 
 /**
  * Stop or start the one-shot timer, based on the argument
- *    -1 stops the counter.
  *     0 sets a default value of MIN_CLOCK_RATE.
  *     >0 sets the indicated interval (in microseconds)
  *
  * If the timer is already in that mode, do nothing.
- * @param flag - if 0, stop the timer. Non-zero - set the
- *      one-shot timer for the indicated number of microseconds.
+ * @param value - the time delay requested (in microseconds).
+ *      if 0, stop the timer. 
+ *           Non-zero - set the one-shot timer for the indicated number 
+ *         of microseconds.
  *
  */
 void StepperDriver::controlTimer(int64_t value) {
@@ -136,7 +137,7 @@ void StepperDriver::controlTimer(int64_t value) {
   // To set a new interval, the timer MUST be stopped.
   esp_timer_stop(myTimer);
 
-  if (value != 0)
+  if (value > 0)
     {  // set the requested delay period
       esp_timer_start_once(myTimer, value); // Interval in uSeconds.
     }
