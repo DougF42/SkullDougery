@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../audio/Output.h"
+#include "Output.h"
 
 /**
  * Base Class for both the ADC and I2S sampler

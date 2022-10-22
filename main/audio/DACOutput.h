@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../audio/Output.h"
+#include "Output.h"
 
 /**
  * Base Class for both the ADC and I2S sampler
  **/
-class DACOutput : public Output
+class DACOutput : : public Output
 {
 public:
     // DAC can only be used with I2S_NUM_0 - no argument!

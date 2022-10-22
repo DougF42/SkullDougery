@@ -12,7 +12,7 @@
 #include "config.h"
 #include "Parameters/RmNvs.h"
 #include "PwmDriver.h"
-#include "SndPlayer.h"
+#include "audio/SndPlayer.h"
 #include "Network/WiFiHub.h"
 #include "Stepper/StepperDriver.h"
 

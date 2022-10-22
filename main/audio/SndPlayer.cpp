@@ -16,11 +16,16 @@
 #include "esp_log.h"
 #include <driver/gpio.h>
 #include <errno.h>
-#include "audio/DACOutput.h"
-#include "audio/I2SOutput.h"
-#include "audio/Output.h"
-#include "Sequencer/Message.h"
-#include "Sequencer/SwitchBoard.h"
+
+#ifdef USE_I2S
+#include "I2SOutput.h"
+#else
+#include "DACOutput.h"
+#endif
+
+#include "Output.h"
+#include "../Sequencer/Message.h"
+#include "../Sequencer/SwitchBoard.h"
 
 #include "config.h"
 #include "SndPlayer.h"
@@ -342,7 +347,7 @@ void SndPlayer::playMusic (void *output_ptr)
 
 				}
 
-				// write the decoded samples to the I2S output
+				// write the decoded samples to the output
 				output->write (pcm, samples );
 
 				// keep track of how many samples we've decoded
@@ -416,11 +421,13 @@ void SndPlayer::startPlayerTask (void *_me)
 	SndPlayer *me = (SndPlayer*) _me;
 	me->runState = PLAYER_IDLE;
 
+
+	// setup the button to trigger playback - see config.h for settings
+	gpio_set_direction (GPIO_BUTTON, GPIO_MODE_INPUT );
+	gpio_set_pull_mode (GPIO_BUTTON, GPIO_PULLUP_ONLY );
+
 	// Register this driver.
 	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, me);
-
-	// This tests eyes and jaws...
-	PwmDriver pwm ("eyeball/Servo Driver" );
 
 	// create the output - see config.h for settings
 #ifdef USE_I2S
@@ -435,9 +442,6 @@ void SndPlayer::startPlayerTask (void *_me)
 	gpio_set_level (I2S_SPEAKDER_SD_PIN, 1 );
 #endif
 
-	// setup the button to trigger playback - see config.h for settings
-	gpio_set_direction (GPIO_BUTTON, GPIO_MODE_INPUT );
-	gpio_set_pull_mode (GPIO_BUTTON, GPIO_PULLUP_ONLY );
 
 	// initialize the file system
 	SPIFFS spiffs ("/fs" );
