@@ -9,7 +9,7 @@
  */
 #include "stdlib.h"
 #include "string.h"
-#include "SPIFFS.h"
+#include "../SPIFFS.h"
 #include "freertos/FreeRTOS.h"
 #include "Sequencer/DeviceDef.h"
 #include <freertos/task.h>
