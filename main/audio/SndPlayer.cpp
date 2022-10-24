@@ -11,17 +11,14 @@
 #include "string.h"
 #include "../SPIFFS.h"
 #include "freertos/FreeRTOS.h"
-#include "Sequencer/DeviceDef.h"
+#include "../Sequencer/DeviceDef.h"
 #include <freertos/task.h>
 #include "esp_log.h"
 #include <driver/gpio.h>
 #include <errno.h>
 
-#ifdef USE_I2S
-#include "I2SOutput.h"
-#else
-#include "DACOutput.h"
-#endif
+#include "I2SOutput2.h"
+
 
 #include "Output.h"
 #include "../Sequencer/Message.h"
@@ -29,7 +26,7 @@
 
 #include "config.h"
 #include "SndPlayer.h"
-#include "PwmDriver.h"
+#include "../PwmDriver.h"
 
 // 8000 samples is aprox 1 second.
 #define NOTIFYINTERVAL 8000
@@ -40,9 +37,9 @@
 #define MINIMP3_IMPLEMENTATION
 #define MINIMP3_ONLY_MP3
 #define MINIMP3_NO_STDIO
-#include "audio/minimp3.h"
+#include "minimp3.h"
 
-static const char *TAG = "SOUND:";
+static const char *TAG = "SNDPLAYER:";
 
 SndPlayer::SndPlayer (const char *_name) :
 		DeviceDef (_name )
@@ -185,12 +182,12 @@ void SndPlayer::playMusic (void *output_ptr)
 	uint8_t *input_buf = (uint8_t*) malloc (BUFFER_SIZE );
 	if (!pcm)
 	{
-		ESP_LOGE("main", "Failed to allocate pcm memory" );
+		ESP_LOGE(TAG, "Failed to allocate pcm memory" );
 	}
 
 	if (!input_buf)
 	{
-		ESP_LOGE("main", "Failed to allocate input_buf memory" );
+		ESP_LOGE(TAG, "Failed to allocate input_buf memory" );
 	}
 
 

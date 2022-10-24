@@ -1,6 +1,5 @@
 
 #include <freertos/FreeRTOS.h>
-#include <driver/i2s.h>
 #include <climits>
 
 // This a 'random' number that we use to indicate
@@ -12,10 +11,7 @@
 // WIFI/NETWORK SETTINGS
 #define SKULL_WIFI_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
 
-// comment this out if you want to use the internal DAC
-//#define USE_I2S
-
-// speaker settings - if using I2S
+// speaker settings for driving I2S amplifier
 #define I2S_SPEAKER_SERIAL_CLOCK GPIO_NUM_19
 #define I2S_SPEAKER_LEFT_RIGHT_CLOCK GPIO_NUM_21
 #define I2S_SPEAKER_SERIAL_DATA GPIO_NUM_18
@@ -24,8 +20,6 @@
 // For the ANALOG output
 // Which dac channel? channel 1 is pin 25, 2 is pin 26.
 #define USE_DAC_CHANNEL DAC_CHANNEL_1
-// i2s speaker pins definition
-extern i2s_pin_config_t i2s_speaker_pins;
 
 // volume control - if required
 //#define VOLUME_CONTROL ADC1_CHANNEL_7

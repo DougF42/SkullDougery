@@ -1,7 +1,8 @@
 #pragma once
 
 #include <freertos/FreeRTOS.h>
-#include <driver/i2s.h>
+#include <driver/i2s_std.h>
+
 #ifndef O_U_T_P_U_T__H
 #define O_U_T_P_U_T__H
 /**
@@ -10,13 +11,11 @@
 class Output
 {
 protected:
-  i2s_port_t m_i2s_port = I2S_NUM_0;
-
   int16_t *frames_buffer;
   float volume = 1.0f;
 
 public:
-  Output(i2s_port_t i2s_port);
+  Output();
   virtual ~Output();
   virtual void start(int sample_rate) = 0;
   void stop();

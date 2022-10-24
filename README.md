@@ -35,6 +35,7 @@ next step' is calculated, and a event is schedualed in the sequencer.
 
 Initial input will be an *.mp3 file.
 * .mp3 format audio source, stored in flash memory.
+  INPUT FORMAT: .mp3.   8khz, 16 byte data, mono to conserve space.
 
 _NOTE: There is a bug in the I2S code on master that keeps us from working. 
 As a result we are using IDF version V4.2.2 (branch: release/v4.2)._

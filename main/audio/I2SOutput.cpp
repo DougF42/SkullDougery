@@ -1,7 +1,10 @@
 #include "freertos/FreeRTOS.h"
 #include "esp_intr_alloc.h"
-#include "Output.h"
 #include "../audio/I2SOutput.h"
+#include "Output.h"
+
+
+#ifndef DEPRECIATE_OLD_I2S_DONT_USE
 /*
  *  I2SOutput(i2s_port_t i2s_port, i2s_pin_config_t &i2s_pins);
  */
@@ -38,3 +41,4 @@ void I2SOutput::start(uint32_t sample_rate)
 
     i2s_start(m_i2s_port);
 }
+#endif
