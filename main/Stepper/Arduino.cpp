@@ -9,6 +9,7 @@
 #include "Arduino.h"
 #include "unistd.h"
 #include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
 #include "freertos/task.h"

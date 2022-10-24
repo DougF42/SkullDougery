@@ -134,7 +134,7 @@ void StepperMotorController::Dump()
 // @return 0 if not running. Time (microSsecs) to next
 //           event otherwise
 //=========================================================
-unsigned long StepperMotorontroller::GetTimeToNextStep ()
+unsigned long StepperMotorController::GetTimeToNextStep ()
 {
   unsigned long int stepLength_usecs=0L;
   

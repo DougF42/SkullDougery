@@ -33,6 +33,7 @@
 #include "config.h"
 #include "Parameters/RmNvs.h"
 #include "Stepper/StepperDriver.h"
+#include "audio/SndPlayer.h"
 #include "PwmDriver.h"
 
 static const char *TAG="CmdDecoder::";

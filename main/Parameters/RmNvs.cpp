@@ -90,7 +90,7 @@ void RmNvs::initSingleString(int idx, const char *key, const char *val) {
  * This sets individual string defaults - it is ONLY used  by RMNVS_init_values.
  * As such, there should NEVER be any failure here - if failure, we panic and abort.
  */
-void RmNvs::initSingleInt(int idx, const char *key, int val) {
+void RmNvs::initSingleInt(int idx, const char *key, int32_t val) {
 	if (idx > sizeof(curValues)/sizeof(struct curValues_t)) {
 		ESP_LOGE(TAG, "In RMNVS: initSingleValues. Index is %d, larger than limit of %d",
 				idx, sizeof(curValues)/sizeof(struct curValues_t));

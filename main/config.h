@@ -7,13 +7,14 @@
  * Due to a change in how stuff is defined in recent compilers.,
  * the following definitions are changed to their 'upgraded' versions:
  */
+#ifdef SKIPME
 #include <stdint.h>
 
 #undef int32_t
 typedef __int32_t int32_t ;
 #undef uint32_t
 typedef __uint32_t uint32_t ;
-
+#endif
 #include <freertos/FreeRTOS.h>
 #include <climits>
 

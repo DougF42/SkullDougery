@@ -161,7 +161,7 @@ void SndPlayer::callBack (const Message *msg)
 
 void SndPlayer::playMusic (void *output_ptr)
 {
-	Output *output = (Output*) output_ptr;
+	I2SOutput2 *output = (I2SOutput2*) output_ptr;
 	int eye_avg = 0;
 	int eye_avg_cnt = 0;
 	int jaw_avg = 0;
@@ -411,7 +411,7 @@ void SndPlayer::testEyesAndJaws ()
  */
 void SndPlayer::startPlayerTask (void *_me)
 {
-	Output *output;
+	I2SOutput2 *output;
 	SndPlayer *me = (SndPlayer*) _me;
 	me->runState = PLAYER_IDLE;
 

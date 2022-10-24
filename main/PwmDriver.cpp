@@ -60,8 +60,7 @@ static const char *TAG = "PWMDRIVER:";
 bool PwmDriver::alreadyInited = false;
 
 // Initialize
-PwmDriver::PwmDriver (const char *name) :
-		DeviceDef (name )
+PwmDriver::PwmDriver (const char *name) : DeviceDef (name )
 {
 	ESP_LOGD(TAG, "In PWMDRIVER init..." );
 	devName = strdup ("PWMDRIVER" );
@@ -146,7 +145,7 @@ void PwmDriver::callBack(const Message *msg) {
 		duty = interpEyes.interp(duty);
 
 		ESP_LOGD(TAG,
-				"PWMDRIVER Callback: Set EYE(s) to %ld. Actual value will be %d",
+				"PWMDRIVER Callback: Set EYE(s) to %ld. Actual value will be %ld",
 				msg->value, duty);
 
 		switch (msg->event) {
@@ -173,7 +172,7 @@ void PwmDriver::callBack(const Message *msg) {
 		if (msg->destination == TASK_NAME::JAW) {
 			duty = interpJaw.interp(msg->value);
 				ESP_LOGI(TAG,
-						"PWMDRIVER Callback*: Set JAW to %ld. Actual value will be %d",
+						"PWMDRIVER Callback*: Set JAW to %ld. Actual value will be %ld",
 						msg->value, duty);
 
 			ledc_set_duty(LEDC_LOW_SPEED_MODE, ch_jaw, duty);

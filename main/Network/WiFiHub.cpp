@@ -22,6 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "esp_mac.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -152,7 +153,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 
 	if (event_base == IP_EVENT)
 	{
-		ESP_LOGD(TAG, "In UDP_Server IP_EVENT: EVENT is %d", event_id);
+		ESP_LOGD(TAG, "In UDP_Server IP_EVENT: EVENT is %ld", event_id);
 		if (IP_EVENT )
 		switch (event_id)
 		{
