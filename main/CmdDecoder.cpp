@@ -30,7 +30,6 @@
 #include "Sequencer/Message.h"
 #include "Sequencer/SwitchBoard.h"
 #include "Sequencer/DeviceDef.h"
-#include "SndPlayer.h"
 #include "config.h"
 #include "Parameters/RmNvs.h"
 #include "Stepper/StepperDriver.h"

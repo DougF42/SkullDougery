@@ -101,7 +101,7 @@ void WiFiHub::wifi_event_handler (void *arg, esp_event_base_t event_base,
 	// Events as a HUB
 	if (event_base == WIFI_EVENT)
 	{
-		ESP_LOGD(TAG, "In UDP_Server WIFI_EVENT: EVENT is %d", event_id);
+		ESP_LOGD(TAG, "In UDP_Server WIFI_EVENT: EVENT is %ld", event_id);
 		switch (event_id)
 		{
 			case (WIFI_EVENT_AP_STACONNECTED): //14

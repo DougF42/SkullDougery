@@ -245,7 +245,7 @@ void RmNvs::commit ()
 
 				case (RMNVS_INT):
 					ESP_LOGD(TAG,
-							"RMNVS_commit: Processing INTEGER key %d name %s  value %d",
+							"RMNVS_commit: Processing INTEGER key %d name %s  value %ld",
 							idx, curValues[idx].keyName,
 							curValues[idx].curNumber );
 
@@ -264,7 +264,7 @@ void RmNvs::commit ()
 					break;
 
 				case (RMNVS_BOOL):
-					ESP_LOGD(TAG, "RMNVS_commit: saving key %s, value %d",
+					ESP_LOGD(TAG, "RMNVS_commit: saving key %s, value %ld",
 							curValues[idx].keyName, curValues[idx].curBool );
 					err = nvs_set_i32 (handle, curValues[idx].keyName,
 							curValues[idx].curBool );
@@ -689,16 +689,16 @@ const char* RmNvs::get_info (int idx)
 			break;
 
 		case (RMNVS_INT):
-			sprintf (resp, "%s Type: Integer:  %d",hdr, curValues[idx].curNumber );
+			sprintf (resp, "%s Type: Integer:  %ld",hdr, curValues[idx].curNumber );
 			break;
 
 		case (RMNVS_ADDR):
 			RmNvs::get_addr_as_string (curValues[idx].keyName, adrPtr );
-			sprintf (resp, "%s Type: Address:  %d (%s)", hdr, curValues[idx].curAddr,	adrPtr );
+			sprintf (resp, "%s Type: Address:  %ld (%s)", hdr, curValues[idx].curAddr,	adrPtr );
 			break;
 
 		case (RMNVS_BOOL):
-			sprintf (resp, "%s Type: Bool:     %d", hdr, curValues[idx].curBool );
+			sprintf (resp, "%s Type: Bool:     %ld", hdr, curValues[idx].curBool );
 			break;
 
 		case (RMNVS_END):
@@ -726,15 +726,15 @@ void RmNvs::dumpTable ()
 				ESP_LOGD(buf, "%s Type: String: %s", hdr, curValues[idx].curString );
 				break;
 			case (RMNVS_INT):
-		ESP_LOGD(buf, "%s Type: Integer: %d",hdr, curValues[idx].curNumber );
+		ESP_LOGD(buf, "%s Type: Integer: %ld",hdr, curValues[idx].curNumber );
 				break;
 			case (RMNVS_ADDR):
 				RmNvs::get_addr_as_string (curValues[idx].keyName, buf );
-			ESP_LOGD(buf, "%s Type: Address:%d (%s)",hdr, curValues[idx].curAddr, buf );
+			ESP_LOGD(buf, "%s Type: Address:%ld (%s)",hdr, curValues[idx].curAddr, buf );
 				break;
 
 			case (RMNVS_BOOL):
-		ESP_LOGD(buf, "%s Type: Bool:   %d",hdr, curValues[idx].curBool );
+		ESP_LOGD(buf, "%s Type: Bool:   %ld",hdr, curValues[idx].curBool );
 				break;
 
 			case (RMNVS_END):

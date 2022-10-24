@@ -18,9 +18,6 @@
 #include <errno.h>
 
 #include "I2SOutput2.h"
-
-
-#include "Output.h"
 #include "../Sequencer/Message.h"
 #include "../Sequencer/SwitchBoard.h"
 
@@ -427,18 +424,13 @@ void SndPlayer::startPlayerTask (void *_me)
 	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, me);
 
 	// create the output - see config.h for settings
-#ifdef USE_I2S
-	output = new I2SOutput(I2S_NUM_0), i2s_speaker_pins);
-#else
-	output = new DACOutput ();
-#endif
+	output = new I2SOutput2();
 
-#ifdef I2S_SPEAKDER_SD_PIN
 	// if you I2S amp has a SD pin, you'll need to turn it on
+#ifdef I2S_SPEAKDER_SD_PIN
 	gpio_set_direction (I2S_SPEAKDER_SD_PIN, GPIO_MODE_OUTPUT );
 	gpio_set_level (I2S_SPEAKDER_SD_PIN, 1 );
 #endif
-
 
 	// initialize the file system
 	SPIFFS spiffs ("/fs" );

@@ -7,15 +7,23 @@
  */
 #ifndef MAIN_AUDIO_I2SOUTPUT2_H_
 #define MAIN_AUDIO_I2SOUTPUT2_H_
-#include "Output.h"
+#include "driver/i2s_std.h"
 
-class I2SOutput2 : Output
+class I2SOutput2
 {
 public:
 	I2SOutput2 ();
 	virtual ~I2SOutput2 ();
-    I2SOutput(i2s_port_t i2s_port, i2s_pin_config_t &i2s_pins);
-    void start(uint32_t sample_rate);
+
+	void start (int sample_rate);
+
+	void stop ();
+
+// Override
+	void write (int16_t *samples, int frames);
+	// Override
+	void set_volume (float volume);
+
 };
 
 #endif /* MAIN_AUDIO_I2SOUTPUT2_H_ */

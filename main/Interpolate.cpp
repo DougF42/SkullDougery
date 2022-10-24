@@ -25,6 +25,7 @@
  *
  * ERRORS:
  */
+#include "config.h"
 #include <stdio.h>
 #include "Interpolate.h"
 
@@ -115,7 +116,7 @@ unsigned Interpolate::interp (int x)
 void Interpolate::dumpTable() {
 	int i;
 	for (i=0; i<=lastTabIdx; i++) {
-		fprintf(stdout,"X = %5d   Y= %5d   SLOPE=%7.5f\n", xTable[i], yTable[i], slope[i]);
+		fprintf(stdout,"X = %5d   Y= %5lu   SLOPE=%7.5f\n", xTable[i], yTable[i], slope[i]);
 	}
 }
 
