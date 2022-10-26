@@ -28,10 +28,9 @@ typedef __uint32_t uint32_t ;
 #define SKULL_WIFI_AUTHMODE WIFI_AUTH_WPA_WPA2_PSK
 
 // speaker settings for driving I2S amplifier
-#define I2S_SPEAKER_SERIAL_CLOCK GPIO_NUM_19
-#define I2S_SPEAKER_LEFT_RIGHT_CLOCK GPIO_NUM_21
-#define I2S_SPEAKER_SERIAL_DATA GPIO_NUM_18
-// #define I2S_SPEAKDER_SD_PIN GPIO_NUM_5
+#define I2S_SPEAKER_SERIAL_CLOCK      GPIO_NUM_19
+#define I2S_SPEAKER_LEFT_RIGHT_CLOCK  GPIO_NUM_21
+#define I2S_SPEAKER_SERIAL_DATA       GPIO_NUM_18
 
 // For the ANALOG output
 // Which dac channel? channel 1 is pin 25, 2 is pin 26.
