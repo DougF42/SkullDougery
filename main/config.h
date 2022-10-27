@@ -31,13 +31,9 @@ typedef __uint32_t uint32_t ;
 #define I2S_SPEAKER_SERIAL_CLOCK      GPIO_NUM_19
 #define I2S_SPEAKER_LEFT_RIGHT_CLOCK  GPIO_NUM_21
 #define I2S_SPEAKER_SERIAL_DATA       GPIO_NUM_18
-
-// For the ANALOG output
-// Which dac channel? channel 1 is pin 25, 2 is pin 26.
-#define USE_DAC_CHANNEL DAC_CHANNEL_1
-
-// volume control - if required
+// volume control - (not currently implemented)
 //#define VOLUME_CONTROL ADC1_CHANNEL_7
+
 
 // button - GPIO 0 is the built in button on most dev boards
 #define GPIO_BUTTON GPIO_NUM_0

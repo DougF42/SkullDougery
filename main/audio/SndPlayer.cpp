@@ -424,7 +424,7 @@ void SndPlayer::startPlayerTask (void *_me)
 	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, me);
 
 	// create the output - see config.h for settings
-	output = new I2SOutput2();
+	output = new I2SOutput2(8000, I2S_DATA_BIT_WIDTH_16BIT);
 
 	// if you I2S amp has a SD pin, you'll need to turn it on
 #ifdef I2S_SPEAKDER_SD_PIN

@@ -12,7 +12,7 @@
 class I2SOutput2
 {
 public:
-	I2SOutput2 ();
+	I2SOutput2 (uint32_t rate, i2s_data_bit_width_t bits_per_sample);
 	virtual ~I2SOutput2 ();
 
 	void start (int sample_rate);
