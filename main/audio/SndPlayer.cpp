@@ -27,8 +27,8 @@
 
 // 8000 samples is aprox 1 second.
 #define NOTIFYINTERVAL 8000
-#define ENABLE_JAW
-#define ENABLE_EYES
+// #define ENABLE_JAW
+// #define ENABLE_EYES
 #define ENABLE_PWM (defined(ENABLE_JAW) || defined (ENABLE_EYES))
 
 #define MINIMP3_IMPLEMENTATION
@@ -42,14 +42,17 @@ SndPlayer::SndPlayer (const char *_name) :
 		DeviceDef (_name )
 {
 	runState = PLAYER_IDLE;
+	is_output_started = false;
 	myTask = nullptr;
 	eye_scale=1;
 	jaw_scale=1;
 }
 
+
+// Destructor
 SndPlayer::~SndPlayer ()
 {
-
+  
 }
 
 /**
@@ -90,7 +93,6 @@ void SndPlayer::checkForCommand ()
 
 			case (PLAYER_RUNNING):
 				runState = PLAYER_PAUSED;
-				// TODO:
 				break;
 
 			case (PLAYER_PAUSED):
@@ -98,7 +100,7 @@ void SndPlayer::checkForCommand ()
 				break;
 
 			case (PLAYER_REWIND):
-				// TODO: Ignore this - should never happen?
+				// Ignore this - should never happen?
 				break;
 
 			default:
@@ -142,6 +144,7 @@ void SndPlayer::callBack (const Message *msg)
 	return;
 }
 
+
 /**
  * This is where we actually play the music.
  * It is also responsible for sending control
@@ -158,36 +161,37 @@ void SndPlayer::callBack (const Message *msg)
  *                     output (output_ptr is ignored, should be nullptr in this case).
  *
  */
-
 void SndPlayer::playMusic (void *output_ptr)
 {
+	FILE *fp;
 	I2SOutput2 *output = (I2SOutput2*) output_ptr;
+#ifdef ENABLE_EYE
 	int eye_avg = 0;
 	int eye_avg_cnt = 0;
+#endif
+
+#ifdef ENABLE_JAW
 	int jaw_avg = 0;
 	int jaw_avg_cnt = 0;
-	bool is_output_started = false;
-	long int totalSamples=0;
+#endif
+	is_output_started = false;
 
 #if defined(ENABLE_JAW) || defined (ENABLE_EYES)
 	Message *msg;
 #endif
 
 	// setup for the mp3 decoded
-	short *pcm = (short*) malloc (
-			sizeof(short) * MINIMP3_MAX_SAMPLES_PER_FRAME );
-	uint8_t *input_buf = (uint8_t*) malloc (BUFFER_SIZE );
+	short *pcm = (short*) malloc (sizeof(short) * MINIMP3_MAX_SAMPLES_PER_FRAME );
 	if (!pcm)
 	{
 		ESP_LOGE(TAG, "Failed to allocate pcm memory" );
 	}
-
+	
+	uint8_t *input_buf = (uint8_t*) malloc (BUFFER_SIZE );
 	if (!input_buf)
 	{
 		ESP_LOGE(TAG, "Failed to allocate input_buf memory" );
 	}
-
-
 
 	while (1) // WAITING TO START READING THE FILE
 	{
@@ -209,11 +213,10 @@ void SndPlayer::playMusic (void *output_ptr)
 		int to_read = BUFFER_SIZE;
 		int buffered = 0;
 		int decoded = 0;
-		is_output_started = false;
 
 		// this assumes that you have uploaded the mp3 file to the SPIFFS
 		errno = 0;
-		FILE *fp = fopen (SOURCE_FILE_NAME, "r" );
+		fp = fopen (SOURCE_FILE_NAME, "r" );
 		if (!fp)
 		{
 			ESP_LOGE("main", "Failed to open file. Error %d (%s)", errno,
@@ -221,7 +224,6 @@ void SndPlayer::playMusic (void *output_ptr)
 			runState = PLAYER_IDLE;
 			continue;
 		}
-		totalSamples=0;
 
 		while (1) // PLAY THIS FILE
 		{
@@ -233,10 +235,10 @@ void SndPlayer::playMusic (void *output_ptr)
 			}
 
 #ifdef VOLUME_CONTROL
-  auto adc_value = float(adc1_get_raw(VOLUME_CONTROL)) / 4096.0f;
-  // make the actual volume match how people hear
-  // https://ux.stackexchange.com/questions/79672/why-dont-commercial-products-use-logarithmic-volume-controls
-  output->set_volume(adc_value * adc_value);
+			auto adc_value = float(adc1_get_raw(VOLUME_CONTROL)) / 4096.0f;
+			// make the actual volume match how people hear
+			// https://ux.stackexchange.com/questions/79672/why-dont-commercial-products-use-logarithmic-volume-controls
+			output->set_volume(adc_value * adc_value);
 #endif
 
 			// read in the data that is needed to top up the buffer
@@ -273,9 +275,12 @@ void SndPlayer::playMusic (void *output_ptr)
 			to_read = info.frame_bytes;
 			if (samples > 0)
 			{
-				// if we haven't started the output yet we can do it now as we now know the sample rate and number of channels
+				/* if we haven't started the output yet we can do it now as we
+				 * now know the sample rate and number of channels
+				 */
 				if ( !is_output_started )
 				{
+					dump_header (&info);
 					output->start (info.hz );
 					is_output_started = true;
 				}
@@ -292,15 +297,11 @@ void SndPlayer::playMusic (void *output_ptr)
 					}
 				}
 
-				// TODO: EVERY n SAMPLES, notify the action_sequencer to check for nod or rot
-				//     actions.
-				if (0==(totalSamples % NOTIFYINTERVAL))
-				{
-					// TODO: SEND NOTIFY MESSAGES TO MOTIONSEQUENCER
-				}
+
 				// This is where we do the averaging
 				for (int i = 0; i < (samples * 2); i += 2 )
 				{
+#ifdef ENABLE_EYES
 					eye_avg += abs (pcm[i] );
 					eye_avg_cnt++;
 
@@ -308,18 +309,19 @@ void SndPlayer::playMusic (void *output_ptr)
 					if (eye_avg_cnt >= EYE_AVG_SIZE)
 					{
 						eye_avg /= EYE_AVG_SIZE;
-#ifdef ENABLE_EYES
+
 						eye_avg = map(eye_avg, 0, 3200, 0, 1000);
 						msg = Message::create_message (TASK_NAME::EYES,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									eye_avg * 10, eye_avg * 10, nullptr );
 							SwitchBoard::send (msg );
-#endif
+
 						eye_avg = 0;
 						eye_avg_cnt = 0;
 					}
+#endif
 
-
+#ifdef ENABLE_JAW
 					// JAW MOTION
 					jaw_avg += abs (pcm[i] );
 					jaw_avg_cnt++;
@@ -327,18 +329,18 @@ void SndPlayer::playMusic (void *output_ptr)
 					if (jaw_avg_cnt >= JAW_AVG_SIZE)
 					{
 						jaw_avg /= jaw_avg_cnt;
-#ifdef ENABLE_JAW
+
 						jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
 						msg = Message::create_message (TASK_NAME::JAW,
 									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 									jaw_avg, 0, nullptr );
 						SwitchBoard::send (msg );
 
-#endif
+
 						jaw_avg = 0;
 						jaw_avg_cnt = 0;
 					}
-
+#endif
 				}
 
 				// write the decoded samples to the output
@@ -351,20 +353,23 @@ void SndPlayer::playMusic (void *output_ptr)
 
 		} // END of while PLAY THIS FILE
 
+#ifdef ENABLE_EYES
 		msg = Message::create_message (TASK_NAME::EYES,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 											0, 0, nullptr );
 		SwitchBoard::send (msg );
+#endif
+
+#ifdef ENABLE_JAW
 		msg = Message::create_message (TASK_NAME::JAW,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 											0, 0, nullptr );
 		SwitchBoard::send(msg);
-
+#endif
 		ESP_LOGI("main", "Finished playing file\n" );
 		fclose (fp );
 	}  // END of WAITING TO START READING THE FILE
-	ESP_LOGD(TAG, "*******************************OOPS - should not return!***************");
-
+	// ESP_LOGD(TAG, "----- OOPS - should not return!------");
 	return;
 }
 
@@ -426,19 +431,13 @@ void SndPlayer::startPlayerTask (void *_me)
 	// create the output - see config.h for settings
 	output = new I2SOutput2(8000, I2S_DATA_BIT_WIDTH_16BIT);
 
-	// if you I2S amp has a SD pin, you'll need to turn it on
-#ifdef I2S_SPEAKDER_SD_PIN
-	gpio_set_direction (I2S_SPEAKDER_SD_PIN, GPIO_MODE_OUTPUT );
-	gpio_set_level (I2S_SPEAKDER_SD_PIN, 1 );
-#endif
-
 	// initialize the file system
 	SPIFFS spiffs ("/fs" );
 
 #ifdef VOLUME_CONTROL
-  // set up the ADC for reading the volume control
-  adc1_config_width(ADC_WIDTH_12Bit);
-  adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11);
+	// set up the ADC for reading the volume control
+	adc1_config_width(ADC_WIDTH_12Bit);
+	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11);
 #endif
 
 #if defined(ENABLE_JAW) || defined (ENABLE_EYES)
@@ -448,4 +447,16 @@ void SndPlayer::startPlayerTask (void *_me)
 	// NOW LETS START THE MUSIC PLAYER...
 	//xTaskCreatePinnedToCore(playMusic, "Player", 8092, this, tskIDLE_PRIORITY, &myTask, ASSIGN_MUSIC_CORE);
 	me->playMusic (output ); // NOTE: This never returns...
+}
+
+void SndPlayer::dump_header(void *info_ptr )
+{
+	mp3dec_frame_info_t *info=(mp3dec_frame_info_t *)info_ptr;
+	// frame_bytes, frame_offset, channels, hz, layer, bitrate_kbps
+	ESP_LOGI(TAG, "Frame Bytes  : %d", info->frame_bytes);
+	ESP_LOGI(TAG, "Frame Offset : %d", info->frame_offset);
+	ESP_LOGI(TAG, "channels     : %d", info->channels);
+	ESP_LOGI(TAG, "hz           : %d", info->hz);
+	ESP_LOGI(TAG, "later        : %d", info->layer);
+	ESP_LOGI(TAG, "Bitrate_kbps : %d", info->bitrate_kbps);
 }

@@ -24,7 +24,8 @@ static i2s_chan_handle_t                tx_chan;        // I2S tx channel handle
 
 
 
-// Single controler ('simplex'). We write sound data, but dont care about receiving it.
+// Single controler ('simplex'). We write sound data, but dont care
+//    about receiving any.
 //
 //
 //
@@ -74,21 +75,25 @@ I2SOutput2::I2SOutput2 (uint32_t rate, i2s_data_bit_width_t bits_per_sample)
 	// RECEIVE MODE NOT USED!!!      ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_chan, &std_cfg));
 }
 
+/**
+ * This wont really happen... BUT...
+ *
+ */
 I2SOutput2::~I2SOutput2()
 {
-
+	stop();
 }
 
 void I2SOutput2::start(int sample_rate)
 {
-
+	i2s_channel_enable(tx_chan);
 
 }
 
 
 void I2SOutput2::stop()
 {
-
+	i2s_channel_disable(tx_chan);
 }
 
 
@@ -105,7 +110,7 @@ void I2SOutput2::write(int16_t *samples, int bytes_in_buffer)
 	    while (w_next_byte < bytes_in_buffer) {
 	        /* Write i2s data */
 	        if (i2s_channel_write(tx_chan, samples+w_next_byte, bytes_in_buffer-w_next_byte, &w_bytes_written, 1000) == ESP_OK) {
-	            ESP_LOGD(TAG, "Write Task: i2s write %d bytes\n", w_bytes_written);
+	            ESP_LOGI(TAG, "Write Task: i2s write %d bytes\n", w_bytes_written);
 	            w_next_byte += w_bytes_written;
 	        } else {
 	            ESP_LOGE(TAG,"Write Task: i2s write failed\n");

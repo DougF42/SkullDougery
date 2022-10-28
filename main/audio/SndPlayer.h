@@ -19,7 +19,7 @@
 #define SND_EVENT_PLAYER_REWIND 103
 // also uses EVENT_ACTION_SETVALUE to set volume
 
-const int BUFFER_SIZE = 1024;
+const int BUFFER_SIZE = 256;
 
 
 enum Player_State {
@@ -39,9 +39,11 @@ public:
 	static void startPlayerTask(void *_me);
 	void callBack(const Message *msg);
 	TaskHandle_t myTask;
+	void dump_header(void *info );
 
 private:
 	Player_State runState;
+	bool is_output_started;
 	void checkForCommand();
 	void testEyesAndJaws();
 

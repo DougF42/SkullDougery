@@ -44,13 +44,6 @@ void app_main ()
 
 	TaskHandle_t switchboardHandle;
 
-// Start Switchboard first
-//	ESP_LOGD(TAG, "About to start Switchboard!" );
-//	xTaskCreatePinnedToCore (SwitchBoard::runDelivery, "SwitchBoard", 8192,
-//			nullptr, 2, &switchboardHandle, ASSIGN_SWITCHBOARD_CORE );
-//	ESP_LOGD(TAG, "SWITCHBOARD INITIALIZED!\n" );
-
-
 	// Initialize NVS, and load parameters.
 	esp_err_t ret = nvs_flash_init ();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -63,7 +56,7 @@ void app_main ()
 	// Check reset switch - if on, reset NVS parameters.
 	if (1 == gpio_get_level (RESET_SWITCH ))
 	{
-		ESP_LOGD(TAG, "*********RESET switch not active********" );
+		ESP_LOGD(TAG, "*********RESET switch NOT active********" );
 		RmNvs::init (0 );
 	}
 	else
