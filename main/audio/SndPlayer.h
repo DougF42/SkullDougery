@@ -19,7 +19,7 @@
 #define SND_EVENT_PLAYER_REWIND 103
 // also uses EVENT_ACTION_SETVALUE to set volume
 
-const int BUFFER_SIZE = 256;
+const int BUFFER_SIZE = 512;
 
 
 enum Player_State {

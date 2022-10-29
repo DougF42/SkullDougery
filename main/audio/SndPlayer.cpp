@@ -247,11 +247,13 @@ void SndPlayer::playMusic (void *output_ptr)
 			// feed the watchdog
 			vTaskDelay (pdMS_TO_TICKS(1 ) );
 
-			//ESP_LOGI("main", "Read %d bytes\n", n );
+			ESP_LOGI(TAG, "Read %d bytes\n", n );
 			buffered += n;
 
 			if ((runState == PLAYER_REWIND) || (buffered == 0))
 			{
+				ESP_LOGD(TAG, "PLAYER_REWIND triggered");
+
 				// Either we've been told to stop, or have reached the end of the file
 				// AND processed all the buffered data.
 				output->stop ();
@@ -262,8 +264,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			}
 
 			// decode the next frame
-			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm,
-					&info );
+			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm, &info );
 
 			// we've processed this may bytes from the buffered data
 			buffered -= info.frame_bytes;
@@ -271,7 +272,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			// shift the remaining data to the front of the buffer
 			memmove (input_buf, input_buf + info.frame_bytes, buffered );
 
-			// we need to top up the buffer from the file
+			// we will need to top up the buffer from the file (On next pass)
 			to_read = info.frame_bytes;
 			if (samples > 0)
 			{
@@ -342,7 +343,7 @@ void SndPlayer::playMusic (void *output_ptr)
 					}
 #endif
 				}
-
+				ESP_LOGD(TAG, "Sample count is %d",samples);
 				// write the decoded samples to the output
 				output->write (pcm, samples );
 
