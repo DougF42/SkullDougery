@@ -1,5 +1,5 @@
 /**
- * SndPlayer.cpp
+ * @file: SndPlayer.cpp
  *
  *  Created on: Dec 30, 2021
  *      Author: doug
@@ -25,8 +25,11 @@
 #include "SndPlayer.h"
 #include "../PwmDriver.h"
 
+
+
 // 8000 samples is aprox 1 second.
 #define NOTIFYINTERVAL 8000
+
 // #define ENABLE_JAW
 // #define ENABLE_EYES
 #define ENABLE_PWM (defined(ENABLE_JAW) || defined (ENABLE_EYES))
@@ -146,6 +149,83 @@ void SndPlayer::callBack (const Message *msg)
 
 
 /**
+ * This routine averges the current pcm data to determine
+ * the eye and jaw position. Later we may also add
+ * automatic volume controls...
+ * @param: pcm pointer to the buffer with PCM data.
+ *         We expect 16 bytes per samle, stereo.
+ * @param: samples - the number of samples.
+ *         One pair(left/right channel) is considered 1 sample.
+ */
+void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
+{
+#ifdef ENABLE_EYE
+  int eye_avg = 0;
+  int eye_avg_cnt = 0;
+#endif
+
+#ifdef ENABLE_JAW
+  int jaw_avg = 0;
+  int jaw_avg_cnt = 0;
+#endif
+
+#if defined(ENABLE_EYE) || defined(ENABLE_JAW)
+  Message *msg;
+#endif
+
+  // This is where we do the averaging
+  for (int i = 0; i < (samples * 2); i += 2 )
+    {
+#ifdef ENABLE_EYES
+      eye_avg += abs (pcm[i] );
+      eye_avg_cnt++;
+
+      // EYE MOTION
+      if (eye_avg_cnt >= EYE_AVG_SIZE)
+	{
+	  eye_avg /= EYE_AVG_SIZE;
+	  
+	  eye_avg = map(eye_avg, 0, 3200, 0, 1000);
+	  msg = Message::create_message (TASK_NAME::EYES,
+					 TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+					 eye_avg * 10, eye_avg * 10, nullptr );
+	  SwitchBoard::send (msg );  
+	  eye_avg = 0;
+	  eye_avg_cnt = 0;
+	}
+#endif
+
+#ifdef ENABLE_JAW
+      // JAW MOTION
+      jaw_avg += abs (pcm[i] );
+      jaw_avg_cnt++;
+      
+      if (jaw_avg_cnt >= JAW_AVG_SIZE)
+	{
+	  jaw_avg /= jaw_avg_cnt;
+	  
+	  jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
+	  msg = Message::create_message (TASK_NAME::JAW,
+					 TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
+					 jaw_avg, 0, nullptr );
+	  SwitchBoard::send (msg );
+	  
+	  
+	  jaw_avg = 0;
+	  jaw_avg_cnt = 0;
+	}
+
+#ifdef VOLUME_CONTROL
+      auto adc_value = float(adc1_get_raw(VOLUME_CONTROL)) / 4096.0f;
+      // make the actual volume match how people hear
+      // https://ux.stackexchange.com/questions/79672/why-dont-commercial-products-use-logarithmic-volume-controls
+      output->set_volume(adc_value * adc_value);
+#endif
+#endif
+    }
+}
+  
+/**
  * This is where we actually play the music.
  * It is also responsible for sending control
  * info to the eyes and jaw.
@@ -153,35 +233,17 @@ void SndPlayer::callBack (const Message *msg)
  * the file without doing any actual output or control, collecting
  * min/max (scaling) info as we go.
  *
- * This is static - a pointer to the current instance
- * is passed in as the argument
  * @param output_ptr - points to the audio output device. Ignored if prescan is true.
- * @param prescan    - if True, then we only scan the file for max/min average, and
- *                     exit immediatly, without doing any eye or jaw movement or audio
- *                     output (output_ptr is ignored, should be nullptr in this case).
  *
  */
 void SndPlayer::playMusic (void *output_ptr)
 {
 	FILE *fp;
 	I2SOutput2 *output = (I2SOutput2*) output_ptr;
-#ifdef ENABLE_EYE
-	int eye_avg = 0;
-	int eye_avg_cnt = 0;
-#endif
-
-#ifdef ENABLE_JAW
-	int jaw_avg = 0;
-	int jaw_avg_cnt = 0;
-#endif
 	is_output_started = false;
 
-#if defined(ENABLE_JAW) || defined (ENABLE_EYES)
-	Message *msg;
-#endif
-
-	// setup for the mp3 decoded
-	short *pcm = (short*) malloc (sizeof(short) * MINIMP3_MAX_SAMPLES_PER_FRAME );
+	// setup the data buffer for the decoded PCM data
+	PCM_t *pcm = (PCM_t*) malloc (sizeof(PCM_t) * MINIMP3_MAX_SAMPLES_PER_FRAME );
 	if (!pcm)
 	{
 		ESP_LOGE(TAG, "Failed to allocate pcm memory" );
@@ -193,7 +255,7 @@ void SndPlayer::playMusic (void *output_ptr)
 		ESP_LOGE(TAG, "Failed to allocate input_buf memory" );
 	}
 
-	while (1) // WAITING TO START READING THE FILE
+	while (1) // *** WAITING TO START READING THE FILE
 	{
 		is_output_started = false;
 		checkForCommand ();
@@ -204,15 +266,15 @@ void SndPlayer::playMusic (void *output_ptr)
 			continue;
 		}
 
-		// mp3 decoder state
+		// init the mp3 decoder logic
 		mp3dec_t mp3d = { };
 		mp3dec_init (&mp3d );
 		mp3dec_frame_info_t info = { };
 
-		// keep track of how much data we have buffered, need to read and decoded
+		// keep track of how much data we have buffered, need to read.
 		int to_read = BUFFER_SIZE;
 		int buffered = 0;
-		int decoded = 0;
+
 
 		// this assumes that you have uploaded the mp3 file to the SPIFFS
 		errno = 0;
@@ -225,7 +287,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			continue;
 		}
 
-		while (1) // PLAY THIS FILE
+		while (1) // *** PLAY THIS FILE
 		{
 			checkForCommand ();
 			if (runState == PLAYER_PAUSED)
@@ -234,27 +296,13 @@ void SndPlayer::playMusic (void *output_ptr)
 				continue;
 			}
 
-#ifdef VOLUME_CONTROL
-			auto adc_value = float(adc1_get_raw(VOLUME_CONTROL)) / 4096.0f;
-			// make the actual volume match how people hear
-			// https://ux.stackexchange.com/questions/79672/why-dont-commercial-products-use-logarithmic-volume-controls
-			output->set_volume(adc_value * adc_value);
-#endif
+			vTaskDelay (1); // Feed the watchdog
 
 			// read in the data that is needed to top up the buffer
 			size_t n = fread (input_buf + buffered, 1, to_read, fp );
-
-			// feed the watchdog
-			vTaskDelay (pdMS_TO_TICKS(1 ) );
-
-			ESP_LOGI(TAG, "Read %d bytes\n", n );
 			buffered += n;
-
 			if ((runState == PLAYER_REWIND) || (buffered == 0))
-			{
-				ESP_LOGD(TAG, "PLAYER_REWIND triggered");
-
-				// Either we've been told to stop, or have reached the end of the file
+			{   // Either we've been told to stop, or have reached the end of the file
 				// AND processed all the buffered data.
 				output->stop ();
 				is_output_started = false;
@@ -263,17 +311,11 @@ void SndPlayer::playMusic (void *output_ptr)
 				break;
 			}
 
-			// decode the next frame
+
 			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm, &info );
-
-			// we've processed this may bytes from the buffered data
 			buffered -= info.frame_bytes;
-
-			// shift the remaining data to the front of the buffer
-			memmove (input_buf, input_buf + info.frame_bytes, buffered );
-
-			// we will need to top up the buffer from the file (On next pass)
-			to_read = info.frame_bytes;
+			memmove (input_buf, input_buf + info.frame_bytes, buffered ); // shift to front
+			to_read = info.frame_bytes; // do this on the next pass...
 			if (samples > 0)
 			{
 				/* if we haven't started the output yet we can do it now as we
@@ -281,14 +323,14 @@ void SndPlayer::playMusic (void *output_ptr)
 				 */
 				if ( !is_output_started )
 				{
-					dump_header (&info);
 					output->start (info.hz );
 					is_output_started = true;
+					dump_header (&info);
 				}
 
 				// if we've decoded a frame of mono samples convert it to stereo by duplicating the left channel
-				// we can do this in place as our samples buffer has enough space
-				// AUDIO
+				// we can do this in place as our samples buffer has enough space.
+				// assumption: 16-bit (2 byte) sample size.
 				if (info.channels == 1)
 				{
 					for (int i = samples - 1; i >= 0; i-- )
@@ -298,57 +340,9 @@ void SndPlayer::playMusic (void *output_ptr)
 					}
 				}
 
-
-				// This is where we do the averaging
-				for (int i = 0; i < (samples * 2); i += 2 )
-				{
-#ifdef ENABLE_EYES
-					eye_avg += abs (pcm[i] );
-					eye_avg_cnt++;
-
-					// EYE MOTION
-					if (eye_avg_cnt >= EYE_AVG_SIZE)
-					{
-						eye_avg /= EYE_AVG_SIZE;
-
-						eye_avg = map(eye_avg, 0, 3200, 0, 1000);
-						msg = Message::create_message (TASK_NAME::EYES,
-									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									eye_avg * 10, eye_avg * 10, nullptr );
-							SwitchBoard::send (msg );
-
-						eye_avg = 0;
-						eye_avg_cnt = 0;
-					}
-#endif
-
-#ifdef ENABLE_JAW
-					// JAW MOTION
-					jaw_avg += abs (pcm[i] );
-					jaw_avg_cnt++;
-
-					if (jaw_avg_cnt >= JAW_AVG_SIZE)
-					{
-						jaw_avg /= jaw_avg_cnt;
-
-						jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
-						msg = Message::create_message (TASK_NAME::JAW,
-									TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
-									jaw_avg, 0, nullptr );
-						SwitchBoard::send (msg );
-
-
-						jaw_avg = 0;
-						jaw_avg_cnt = 0;
-					}
-#endif
-				}
-				ESP_LOGD(TAG, "Sample count is %d",samples);
 				// write the decoded samples to the output
-				output->write (pcm, samples );
-
-				// keep track of how many samples we've decoded
-				decoded += samples;
+				output->write (pcm, samples * 2); // stereo !
+				moveEyesAndJaw( pcm, samples); // process eyes/jaw/volume
 			}
 			// ESP_LOGI("main", "decoded %d samples\n", decoded);
 
@@ -380,32 +374,53 @@ void SndPlayer::playMusic (void *output_ptr)
  */
 void SndPlayer::testEyesAndJaws ()
 {
+#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
 	Message *msg;
+#endif
 
+#if defined ENABLE_EYE
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 255 , nullptr);
 	SwitchBoard::send (msg ); // Left Eye
+#endif
+#if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr);
 	SwitchBoard::send (msg ); // Open JAW
+#endif
 
+#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
+#endif
+
+#if defined ENABLE_EYE
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 255, 0, nullptr );
 	SwitchBoard::send (msg );  // Right EYE
+#endif
+#if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 1000, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
+#endif
 
+#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
+#endif
+
 	ESP_LOGD(TAG, "NOW TO BEGIN..." );
+
+
+#if defined ENABLE_EYE
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );
+#endif
+#if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
 	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
-
+#endif
 }
 
 
@@ -420,7 +435,6 @@ void SndPlayer::startPlayerTask (void *_me)
 	I2SOutput2 *output;
 	SndPlayer *me = (SndPlayer*) _me;
 	me->runState = PLAYER_IDLE;
-
 
 	// setup the button to trigger playback - see config.h for settings
 	gpio_set_direction (GPIO_BUTTON, GPIO_MODE_INPUT );

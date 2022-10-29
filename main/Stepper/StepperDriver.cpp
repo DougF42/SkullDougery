@@ -132,7 +132,7 @@ void StepperDriver::clockCallback(void *arg) {
  *
  */
 void StepperDriver::controlTimer(int64_t value) {
-  ESP_LOGD(TAG, "controlTimer: arg is %lld", value);
+  // ESP_LOGD(TAG, "controlTimer: arg is %lld", value);
 
   // To set a new interval, the timer MUST be stopped.
   esp_timer_stop(myTimer);

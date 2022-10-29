@@ -101,16 +101,16 @@ void I2SOutput2::stop()
  * Write pwm bytes to the I2C channel. This is a
  * 'blocking' write - it waits until all bytes are in
  * the i2c buffer.
+ * @param samples - we assume 16-bit samples (2 bytes each)
  */
 void I2SOutput2::write(int16_t *samples, int bytes_in_buffer)
 {
 	    size_t w_bytes_written = 0;
 	    size_t w_next_byte=0;
-
-	    while (w_next_byte < bytes_in_buffer) {
+	    while (w_next_byte < (bytes_in_buffer*2)) {
 	        /* Write i2s data */
 	        if (i2s_channel_write(tx_chan, samples+w_next_byte, bytes_in_buffer-w_next_byte, &w_bytes_written, 1000) == ESP_OK) {
-	            ESP_LOGI(TAG, "Write Task: i2s write %d bytes\n", w_bytes_written);
+	//            ESP_LOGI(TAG, "Write Task: i2s write %d bytes\n", w_bytes_written);
 	            w_next_byte += w_bytes_written;
 	        } else {
 	            ESP_LOGE(TAG,"Write Task: i2s write failed\n");

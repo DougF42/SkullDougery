@@ -11,6 +11,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+// This should be the size of a sample
+typedef short PCM_t;
 
 // These are commands that can be sent to this device
 #define SND_EVENT_PLAYER_IDLE  100
@@ -44,6 +46,7 @@ public:
 private:
 	Player_State runState;
 	bool is_output_started;
+	void moveEyesAndJaw(PCM_t *pcm, int samples);
 	void checkForCommand();
 	void testEyesAndJaws();
 
