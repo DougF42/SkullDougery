@@ -21,7 +21,7 @@ typedef short PCM_t;
 #define SND_EVENT_PLAYER_REWIND 103
 // also uses EVENT_ACTION_SETVALUE to set volume
 
-const int BUFFER_SIZE = 512;
+const int BUFFER_SIZE = 16000;
 
 
 enum Player_State {

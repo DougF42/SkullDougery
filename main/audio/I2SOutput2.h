@@ -17,12 +17,8 @@ public:
 	virtual ~I2SOutput2 ();
 
 	void start (int sample_rate);
-
 	void stop ();
-
-// Override
-	void write (int16_t *samples, int frames);
-	// Override
+	void write (const void *samples, int bytes_in_buffer);
 	void set_volume (float volume);
 
 };

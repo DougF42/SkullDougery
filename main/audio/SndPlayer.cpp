@@ -171,7 +171,6 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
 
 #if defined(ENABLE_EYE) || defined(ENABLE_JAW)
   Message *msg;
-#endif
 
   // This is where we do the averaging
   for (int i = 0; i < (samples * 2); i += 2 )
@@ -214,6 +213,7 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
 	  jaw_avg = 0;
 	  jaw_avg_cnt = 0;
 	}
+#endif
 
 #ifdef VOLUME_CONTROL
       auto adc_value = float(adc1_get_raw(VOLUME_CONTROL)) / 4096.0f;
@@ -221,8 +221,8 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
       // https://ux.stackexchange.com/questions/79672/why-dont-commercial-products-use-logarithmic-volume-controls
       output->set_volume(adc_value * adc_value);
 #endif
-#endif
     }
+#endif
 }
   
 /**
@@ -297,13 +297,18 @@ void SndPlayer::playMusic (void *output_ptr)
 			}
 
 			vTaskDelay (1); // Feed the watchdog
+			if (to_read >= (BUFFER_SIZE-300))
+			{
+				// read in the data that is needed to top up the buffer
+				size_t n = fread (input_buf + buffered, 1, to_read, fp );
+				buffered += n;
+				to_read-=n;
+			}
 
-			// read in the data that is needed to top up the buffer
-			size_t n = fread (input_buf + buffered, 1, to_read, fp );
-			buffered += n;
 			if ((runState == PLAYER_REWIND) || (buffered == 0))
 			{   // Either we've been told to stop, or have reached the end of the file
 				// AND processed all the buffered data.
+				ESP_LOGD(TAG, "stopping- see runState %d buffered %d", runState, buffered);
 				output->stop ();
 				is_output_started = false;
 				fclose (fp );
@@ -315,9 +320,9 @@ void SndPlayer::playMusic (void *output_ptr)
 			int samples = mp3dec_decode_frame (&mp3d, input_buf, buffered, pcm, &info );
 			buffered -= info.frame_bytes;
 			memmove (input_buf, input_buf + info.frame_bytes, buffered ); // shift to front
-			to_read = info.frame_bytes; // do this on the next pass...
+			to_read += info.frame_bytes; // do this on the next pass...
 			if (samples > 0)
-			{
+			{ // we have data!
 				/* if we haven't started the output yet we can do it now as we
 				 * now know the sample rate and number of channels
 				 */
@@ -340,7 +345,7 @@ void SndPlayer::playMusic (void *output_ptr)
 					}
 				}
 
-				// write the decoded samples to the output
+				// write the decoded samples to the output.
 				output->write (pcm, samples * 2); // stereo !
 				moveEyesAndJaw( pcm, samples); // process eyes/jaw/volume
 			}
@@ -443,7 +448,7 @@ void SndPlayer::startPlayerTask (void *_me)
 	// Register this driver.
 	SwitchBoard::registerDriver (TASK_NAME::WAVEFILE, me);
 
-	// create the output - see config.h for settings
+	// create the output
 	output = new I2SOutput2(8000, I2S_DATA_BIT_WIDTH_16BIT);
 
 	// initialize the file system
