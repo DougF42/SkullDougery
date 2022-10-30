@@ -300,6 +300,7 @@ void SndPlayer::playMusic (void *output_ptr)
 			if (to_read >= (BUFFER_SIZE-300))
 			{
 				// read in the data that is needed to top up the buffer
+				ESP_LOGD(TAG, "Read flash!");
 				size_t n = fread (input_buf + buffered, 1, to_read, fp );
 				buffered += n;
 				to_read-=n;
@@ -346,7 +347,7 @@ void SndPlayer::playMusic (void *output_ptr)
 				}
 
 				// write the decoded samples to the output.
-				output->write (pcm, samples * 2); // stereo !
+				output->write (pcm, samples * 4); // stereo, bytes
 				moveEyesAndJaw( pcm, samples); // process eyes/jaw/volume
 			}
 			// ESP_LOGI("main", "decoded %d samples\n", decoded);

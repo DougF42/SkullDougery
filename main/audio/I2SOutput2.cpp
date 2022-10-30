@@ -7,6 +7,7 @@
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_timer.h"
 #include <driver/i2s_std.h>
 #include <driver/gpio.h>
 #include "I2SOutput2.h"
@@ -76,7 +77,6 @@ I2SOutput2::I2SOutput2 (uint32_t rate, i2s_data_bit_width_t bits_per_sample)
 }
 
 /**
- * This wont really happen... BUT...
  *
  */
 I2SOutput2::~I2SOutput2()
@@ -108,18 +108,19 @@ void I2SOutput2::write(const void *samples, int bytes_in_buffer)
 {
 	    size_t w_bytes_written = 0;
 	    size_t w_next_byte=0;
-
+	//    int64_t startTime;
+	//    int64_t endTime;
 	    while (w_next_byte < bytes_in_buffer) {
 	        /* Write i2s data */
-
+	    	//startTime=esp_timer_get_time();
 	        if (i2s_channel_write(tx_chan, ((char *)samples)+w_next_byte, bytes_in_buffer-w_next_byte,
 	        		&w_bytes_written, 1000) == ESP_OK) {
-	            //ESP_LOGI(TAG, "Write Task: i2s write %d bytes of %d\n", w_bytes_written, bytes_in_buffer);
+	        //	endTime=esp_timer_get_time();
+	        //  ESP_LOGI(TAG, "Write Task: i2s write %d bytes of %d. delay=%lld\n", w_bytes_written, bytes_in_buffer, endTime-startTime);
 	            w_next_byte += w_bytes_written;
 	        } else {
 	            ESP_LOGE(TAG,"Write Task: i2s write failed\n");
 	        }
-	        vTaskDelay(pdMS_TO_TICKS(200));
 	    }
 }
 
