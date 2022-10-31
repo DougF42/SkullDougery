@@ -76,14 +76,14 @@ typedef __uint32_t uint32_t ;
 #define PIN_RIGHT_EYE    14
 #define LED_FREQ         500
 #define LED_DUTY_RES_BITS    LEDC_TIMER_13_BIT
-#define EYE_AVG_SIZE      50
+#define EYE_AVG_SIZE      400
 
 // Parameters for the SERVO driver (Jaw - pwm)
 // Freq in millisecs.
 #define PIN_JAW_SERVO    13
-#define SERVO_FREQ           50
+#define SERVO_FREQ       50
 #define SERVO_DUTY_RES_BITS  LEDC_TIMER_13_BIT
-#define JAW_AVG_SIZE     128
+#define JAW_AVG_SIZE     400
 
 /*
  * MAP - MACRO to re-map a number from one range to another.

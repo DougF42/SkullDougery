@@ -30,9 +30,8 @@
 // 8000 samples is aprox 1 second.
 #define NOTIFYINTERVAL 8000
 
-// #define ENABLE_JAW
-// #define ENABLE_EYES
-#define ENABLE_PWM (defined(ENABLE_JAW) || defined (ENABLE_EYES))
+#define ENABLE_JAW
+#define ENABLE_EYES
 
 #define MINIMP3_IMPLEMENTATION
 #define MINIMP3_ONLY_MP3
@@ -150,8 +149,10 @@ void SndPlayer::callBack (const Message *msg)
 
 /**
  * This routine averges the current pcm data to determine
- * the eye and jaw position. Later we may also add
- * automatic volume controls...
+ * the eye and jaw position.
+ * The current algorithm simply sums the most recent n samples,
+ * and calcs the avg on sample n (and sets the EYES or JAW appropriately).
+ *
  * @param: pcm pointer to the buffer with PCM data.
  *         We expect 16 bytes per samle, stereo.
  * @param: samples - the number of samples.
@@ -159,7 +160,7 @@ void SndPlayer::callBack (const Message *msg)
  */
 void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
 {
-#ifdef ENABLE_EYE
+#ifdef ENABLE_EYES
   int eye_avg = 0;
   int eye_avg_cnt = 0;
 #endif
@@ -169,8 +170,9 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
   int jaw_avg_cnt = 0;
 #endif
 
-#if defined(ENABLE_EYE) || defined(ENABLE_JAW)
+#if (defined (ENABLE_EYES) || defined(ENABLE_JAW))
   Message *msg;
+#endif
 
   // This is where we do the averaging
   for (int i = 0; i < (samples * 2); i += 2 )
@@ -184,7 +186,7 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
 	{
 	  eye_avg /= EYE_AVG_SIZE;
 	  
-	  eye_avg = map(eye_avg, 0, 3200, 0, 1000);
+	  eye_avg = map(eye_avg, 0, 5000, 0, 500);
 	  msg = Message::create_message (TASK_NAME::EYES,
 					 TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 					 eye_avg * 10, eye_avg * 10, nullptr );
@@ -201,9 +203,9 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
       
       if (jaw_avg_cnt >= JAW_AVG_SIZE)
 	{
-	  jaw_avg /= jaw_avg_cnt;
+	  jaw_avg /= JAW_AVG_SIZE;
 	  
-	  jaw_avg = map(jaw_avg, 0, 3200, 0, 1000);
+	  jaw_avg = map(jaw_avg, 0, 5000, 0, 750);
 	  msg = Message::create_message (TASK_NAME::JAW,
 					 TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
 					 jaw_avg, 0, nullptr );
@@ -222,7 +224,6 @@ void SndPlayer::moveEyesAndJaw(PCM_t *pcm, int samples)
       output->set_volume(adc_value * adc_value);
 #endif
     }
-#endif
 }
   
 /**
@@ -347,13 +348,15 @@ void SndPlayer::playMusic (void *output_ptr)
 				}
 
 				// write the decoded samples to the output.
-				output->write (pcm, samples * 4); // stereo, bytes
-				moveEyesAndJaw( pcm, samples); // process eyes/jaw/volume
+				output->write (pcm, (samples-1) * 4); // stereo, bytes
+				moveEyesAndJaw( pcm, (samples-1)); // process eyes/jaw/volume
 			}
 			// ESP_LOGI("main", "decoded %d samples\n", decoded);
 
 		} // END of while PLAY THIS FILE
-
+#if (defined(ENABLE_EYES) | defined(ENABLE_JAW))
+		Message *msg=nullptr;
+#endif
 #ifdef ENABLE_EYES
 		msg = Message::create_message (TASK_NAME::EYES,
 											TASK_NAME::IDLER, EVENT_ACTION_SETVALUE,
@@ -380,51 +383,52 @@ void SndPlayer::playMusic (void *output_ptr)
  */
 void SndPlayer::testEyesAndJaws ()
 {
-#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
+#if (defined ENABLE_JAW || defined ENABLE_EYES)
 	Message *msg;
 #endif
 
-#if defined ENABLE_EYE
+#if defined ENABLE_EYES
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 255 , nullptr);
+			EVENT_ACTION_SETLEFT, 0, 255 , nullptr);
 	SwitchBoard::send (msg ); // Left Eye
 #endif
+
 #if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0, nullptr);
+			EVENT_ACTION_SETVALUE, 0, 0, nullptr);
 	SwitchBoard::send (msg ); // Open JAW
 #endif
 
-#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
+#if (defined (ENABLE_JAW) || defined (ENABLE_EYES))
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
 #endif
 
-#if defined ENABLE_EYE
+#if defined ENABLE_EYES
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 255, 0, nullptr );
+			EVENT_ACTION_SETRIGHT, 255, 0, nullptr );
 	SwitchBoard::send (msg );  // Right EYE
 #endif
 #if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 1000, 0, nullptr );
+			EVENT_ACTION_SETVALUE, 1000, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 #endif
 
-#if (defined ENABLE_JAW) | (defined ENABLE_EYER)
+#if (defined (ENABLE_JAW) || defined (ENABLE_EYES))
 	vTaskDelay (3000 / portTICK_PERIOD_MS );
 #endif
 
 	ESP_LOGD(TAG, "NOW TO BEGIN..." );
 
 
-#if defined ENABLE_EYE
+#if defined ENABLE_EYES
 	msg = Message::create_message (TASK_NAME::EYES, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
+			EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );
 #endif
 #if defined ENABLE_JAW
 	msg = Message::create_message (TASK_NAME::JAW, TASK_NAME::IDLER,
-	EVENT_ACTION_SETVALUE, 0, 0, nullptr );
+			EVENT_ACTION_SETVALUE, 0, 0, nullptr );
 	SwitchBoard::send (msg );  // Close JAW
 #endif
 }
@@ -461,7 +465,7 @@ void SndPlayer::startPlayerTask (void *_me)
 	adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_DB_11);
 #endif
 
-#if defined(ENABLE_JAW) || defined (ENABLE_EYES)
+#if (defined(ENABLE_JAW) || defined (ENABLE_EYES))
 	me->testEyesAndJaws ();
 #endif
 

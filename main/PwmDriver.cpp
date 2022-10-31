@@ -54,6 +54,8 @@
 
 static const char *TAG = "PWMDRIVER:";
 
+#define MAX_CONTROL_VALUE 1024
+
 #define LED_TIMER     LEDC_TIMER_0
 #define SERVO_TIMER   LEDC_TIMER_1
 
@@ -78,7 +80,6 @@ PwmDriver::PwmDriver (const char *name) : DeviceDef (name )
 	timerSetup ();
 	ESP_LOGD(TAG, "Passed fast timer setup" );
 
-	// Register with Sequencer
 #ifdef INCLUDE_FAST
 	ESP_LOGD(TAG, "Register EYES");
 	SwitchBoard::registerDriver (TASK_NAME::EYES, this );
@@ -86,10 +87,9 @@ PwmDriver::PwmDriver (const char *name) : DeviceDef (name )
 	ESP_LOGI(TAG, "...Calculated maxLedDuty factor: %d ", maxLedDuty );
 	ESP_LOGI(TAG, "");
 	interpEyes.setLimitFlag();
+	// Note: The PWM is backwards - I don't get it, but!!!
 	interpEyes.AddToTable(0, 0);
-	interpEyes.AddToTable(1024, (1<<LED_DUTY_RES_BITS)-1);
-
-	ESP_LOGI(TAG, "SERVO setting range for .7 to 2.5 millisec is %d to %d", servo_min, servo_max);
+	interpEyes.AddToTable(MAX_CONTROL_VALUE, (1<<LED_DUTY_RES_BITS)-1);
 
 #endif
 
@@ -105,7 +105,8 @@ PwmDriver::PwmDriver (const char *name) : DeviceDef (name )
 	// Our servo ranges 180 deg, but we only want 90 deg or so.
 	servo_min =.0007/.020 * maxServoDuty; // .7 millisec out of 20 for 0 deg.
 	servo_max =.0025/.020 * maxServoDuty; // 2.5 millisec out of 20 for 180 deg.
-
+	ESP_LOGI(TAG, "SERVO setting range for .7 to 2.5 millisec is %d to %d",
+			servo_min, servo_max);
 	// SET UP INTERP TABLE FOR JAW
 	interpJaw.setLimitFlag();
 	interpJaw.AddToTable(0, servo_min);
@@ -140,6 +141,10 @@ PwmDriver::~PwmDriver ()
  */
 void PwmDriver::callBack(const Message *msg) {
 	uint32_t duty = msg->value;
+	if (duty>=MAX_CONTROL_VALUE)
+		duty = 0;
+	else
+		duty= MAX_CONTROL_VALUE-duty; // controls are backwards!
 
 	if (msg->destination == TASK_NAME::EYES) {
 		duty = interpEyes.interp(duty);
@@ -171,9 +176,9 @@ void PwmDriver::callBack(const Message *msg) {
 	else {
 		if (msg->destination == TASK_NAME::JAW) {
 			duty = interpJaw.interp(msg->value);
-				ESP_LOGI(TAG,
-						"PWMDRIVER Callback*: Set JAW to %ld. Actual value will be %ld",
-						msg->value, duty);
+			ESP_LOGD(TAG,
+					"PWMDRIVER Callback*: Set JAW to %ld. Actual value will be %ld",
+					msg->value, duty);
 
 			ledc_set_duty(LEDC_LOW_SPEED_MODE, ch_jaw, duty);
 			ledc_update_duty(LEDC_LOW_SPEED_MODE, ch_jaw);

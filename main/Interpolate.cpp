@@ -88,23 +88,23 @@ unsigned Interpolate::interp (int x)
 			break;
 		}
 	}
-	ESP_LOGD(TAG, "Search returned index %d (X value %d) ",highIdx, xTable[highIdx] );
+	// ESP_LOGD(TAG, "Search returned index %d (X value %d) ",highIdx, xTable[highIdx] );
 	if ( (x >= xTable[highIdx]) && limitFlag)
 	{
-		ESP_LOGD(TAG, "RETUN HIGH LIMIT");
+		// ESP_LOGD(TAG, "RETUN HIGH LIMIT");
 		return(yTable[highIdx]);
 	}
 
 	if ( (x <= xTable[0]) && limitFlag)
 	{
-		ESP_LOGD(TAG, "RETURN LOW LIMIT");
+		// ESP_LOGD(TAG, "RETURN LOW LIMIT");
 		return(yTable[0]);
 	}
 	if (highIdx == 0) highIdx=1;
 	lowIdx = highIdx - 1;
 
-	ESP_LOGD(TAG, "Indexes are %d and %d", lowIdx, highIdx);
-	ESP_LOGD(TAG, "X limits are %d and %d. Target is %d", xTable[lowIdx], xTable[highIdx], x);
+	// ESP_LOGD(TAG, "Indexes are %d and %d", lowIdx, highIdx);
+	// ESP_LOGD(TAG, "X limits are %d and %d. Target is %d", xTable[lowIdx], xTable[highIdx], x);
 	int res = yTable[lowIdx] + (x - xTable[highIdx - 1]) * slope[highIdx];
 	return (res);
 }
@@ -116,7 +116,8 @@ unsigned Interpolate::interp (int x)
 void Interpolate::dumpTable() {
 	int i;
 	for (i=0; i<=lastTabIdx; i++) {
-		fprintf(stdout,"X = %5d   Y= %5lu   SLOPE=%7.5f\n", xTable[i], yTable[i], slope[i]);
+		ESP_LOGD(TAG, "X = %5d   Y= %5lu   SLOPE=%7.5f\n",
+				xTable[i], yTable[i], slope[i]);
 	}
 }
 
